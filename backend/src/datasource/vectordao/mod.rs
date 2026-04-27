@@ -1,0 +1,1 @@
+// Vector DAO module - placeholder

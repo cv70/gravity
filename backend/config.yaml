@@ -1,0 +1,25 @@
+server:
+  env: dev
+  host: 0.0.0.0
+  port: 8080
+  jwt_secret: dev_secret_change_in_production
+
+database:
+  host: localhost
+  user: gravity
+  pass: gravity_dev
+  db_name: gravity
+  max_connections: 10
+
+redis:
+  host: localhost
+  port: 6379
+
+clickhouse:
+  host: localhost
+  port: 9000
+  database: gravity_analytics
+
+nats:
+  host: localhost
+  port: 4222
