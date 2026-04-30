@@ -1,64 +1,91 @@
 use anyhow::Result;
-use sqlx::PgPool;
 use uuid::Uuid;
 
-use super::schema::{Campaign, CampaignStatus, CreateCampaignRequest, UpdateCampaignRequest};
+use super::schema::{Campaign, CampaignListResponse, CreateCampaignRequest, UpdateCampaignRequest};
+use crate::datasource::dbdao::DBDao;
+use crate::datasource::dbdao::schema::CampaignRow;
 
 pub struct CampaignRepository {
-    pool: PgPool,
+    db_dao: DBDao,
 }
 
 impl CampaignRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(db_dao: DBDao) -> Self {
+        Self { db_dao }
     }
 
     pub async fn create(&self, tenant_id: Uuid, req: &CreateCampaignRequest) -> Result<Campaign> {
+        let id = Uuid::new_v4();
         let campaign = Campaign::new(tenant_id, req.name.clone(), req.campaign_type.clone());
 
-        let result = sqlx::query_as::<_, Campaign>(
-            r#"
-            INSERT INTO campaigns (id, tenant_id, name, campaign_type, status, description, start_date, end_date, settings)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING *
-            "#,
-        )
-        .bind(campaign.id)
-        .bind(campaign.tenant_id)
-        .bind(&campaign.name)
-        .bind(&campaign.campaign_type)
-        .bind(&campaign.status)
-        .bind(&campaign.description)
-        .bind(&campaign.start_date)
-        .bind(&campaign.end_date)
-        .bind(&campaign.settings)
-        .fetch_one(&self.pool)
-        .await?;
+        let row = self.db_dao.create_campaign(
+            id,
+            tenant_id,
+            &campaign.name,
+            &campaign.campaign_type,
+            &campaign.status,
+            req.description.as_deref(),
+            req.start_date,
+            req.end_date,
+            campaign.settings.clone(),
+        ).await?;
 
-        Ok(result)
+        Ok(Campaign {
+            id: row.id,
+            tenant_id: row.tenant_id,
+            name: row.name,
+            campaign_type: row.campaign_type,
+            status: row.status,
+            description: row.description,
+            start_date: row.start_date,
+            end_date: row.end_date,
+            settings: row.settings,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
     }
 
     pub async fn get_by_id(&self, tenant_id: Uuid, id: Uuid) -> Result<Option<Campaign>> {
-        let result = sqlx::query_as::<_, Campaign>(
-            "SELECT * FROM campaigns WHERE id = $1 AND tenant_id = $2",
-        )
-        .bind(id)
-        .bind(tenant_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row = self.db_dao.get_campaign_by_id(tenant_id, id).await?;
 
-        Ok(result)
+        Ok(row.map(|r| Campaign {
+            id: r.id,
+            tenant_id: r.tenant_id,
+            name: r.name,
+            campaign_type: r.campaign_type,
+            status: r.status,
+            description: r.description,
+            start_date: r.start_date,
+            end_date: r.end_date,
+            settings: r.settings,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+        }))
     }
 
-    pub async fn list(&self, tenant_id: Uuid) -> Result<Vec<Campaign>> {
-        let campaigns = sqlx::query_as::<_, Campaign>(
-            "SELECT * FROM campaigns WHERE tenant_id = $1 ORDER BY created_at DESC",
-        )
-        .bind(tenant_id)
-        .fetch_all(&self.pool)
-        .await?;
+    pub async fn list(&self, tenant_id: Uuid, page: i64, limit: i64) -> Result<(Vec<Campaign>, i64)> {
+        let offset = (page - 1) * limit;
 
-        Ok(campaigns)
+        let (rows, total) = self.db_dao.list_campaigns(tenant_id, limit, offset).await?;
+
+        let campaigns: Vec<Campaign> = rows
+            .into_iter()
+            .map(|r| Campaign {
+                id: r.id,
+                tenant_id: r.tenant_id,
+                name: r.name,
+                campaign_type: r.campaign_type,
+                status: r.status,
+                description: r.description,
+                start_date: r.start_date,
+                end_date: r.end_date,
+                settings: r.settings,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+            })
+            .collect();
+
+        Ok((campaigns, total))
     }
 
     pub async fn update(
@@ -67,57 +94,37 @@ impl CampaignRepository {
         id: Uuid,
         req: &UpdateCampaignRequest,
     ) -> Result<Option<Campaign>> {
-        let existing = self.get_by_id(tenant_id, id).await?;
-        if existing.is_none() {
-            return Ok(None);
-        }
-        let existing = existing.unwrap();
+        let row = self.db_dao.update_campaign(
+            tenant_id,
+            id,
+            req.name.as_deref(),
+            req.status.as_ref().map(|s| s.to_string()).as_deref(),
+            req.description.as_deref(),
+            req.start_date,
+            req.end_date,
+        ).await?;
 
-        let name = req.name.as_ref().unwrap_or(&existing.name);
-        let status = req.status.as_ref().map(|s| s.to_string()).unwrap_or(existing.status);
-        let description = req.description.clone().or(existing.description.clone());
-        let start_date = req.start_date.or(existing.start_date);
-        let end_date = req.end_date.or(existing.end_date);
-
-        let result = sqlx::query_as::<_, Campaign>(
-            r#"
-            UPDATE campaigns
-            SET name = $1, status = $2, description = $3, start_date = $4, end_date = $5, updated_at = NOW()
-            WHERE id = $6 AND tenant_id = $7
-            RETURNING *
-            "#,
-        )
-        .bind(name)
-        .bind(&status)
-        .bind(&description)
-        .bind(start_date)
-        .bind(end_date)
-        .bind(id)
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(Some(result))
+        Ok(row.map(|r| Campaign {
+            id: r.id,
+            tenant_id: r.tenant_id,
+            name: r.name,
+            campaign_type: r.campaign_type,
+            status: r.status,
+            description: r.description,
+            start_date: r.start_date,
+            end_date: r.end_date,
+            settings: r.settings,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+        }))
     }
 
     pub async fn delete(&self, tenant_id: Uuid, id: Uuid) -> Result<bool> {
-        let result = sqlx::query("DELETE FROM campaigns WHERE id = $1 AND tenant_id = $2")
-            .bind(id)
-            .bind(tenant_id)
-            .execute(&self.pool)
-            .await?;
-
-        Ok(result.rows_affected() > 0)
+        self.db_dao.delete_campaign(tenant_id, id).await
     }
 
     pub async fn count_by_status(&self, tenant_id: Uuid) -> Result<(i64,)> {
-        let result = sqlx::query_as::<_, (i64,)>(
-            "SELECT COUNT(*) FROM campaigns WHERE tenant_id = $1 AND status = 'active'",
-        )
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(result)
+        let count = self.db_dao.count_campaigns_by_status(tenant_id, "active").await?;
+        Ok((count,))
     }
 }

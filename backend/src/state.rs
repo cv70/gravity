@@ -1,18 +1,21 @@
 use std::sync::Arc;
+
 use axum::{
     body::Body,
-    extract::{Request, Extension},
+    extract::{Extension, Request},
+    http::StatusCode,
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
+    Json,
 };
-use uuid::Uuid;
 
 use crate::domain::auth::domain::AuthService;
+use crate::infra::Registry;
 
 #[derive(Clone, Copy)]
 pub struct UserContext {
-    pub user_id: Uuid,
-    pub tenant_id: Uuid,
+    pub user_id: uuid::Uuid,
+    pub tenant_id: uuid::Uuid,
 }
 
 pub async fn auth_middleware(
@@ -26,37 +29,55 @@ pub async fn auth_middleware(
         .and_then(|h| h.to_str().ok())
         .and_then(|h| h.strip_prefix("Bearer "));
 
-    if let Some(token) = token {
-        if let Some(claims) = auth_service.verify_token(token).ok().flatten() {
-            if let (Ok(user_id), Ok(tenant_id)) = (
-                Uuid::parse_str(&claims.user_id),
-                Uuid::parse_str(&claims.tenant_id),
-            ) {
-                request.extensions_mut().insert(UserContext { user_id, tenant_id });
-            }
+    match token {
+        Some(token) => {
+            let claims = match auth_service.verify_token(token) {
+                Ok(Some(c)) => c,
+                Ok(None) => {
+                    return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"code": 401, "message": "Invalid token"}))).into_response();
+                }
+                Err(e) => {
+                    tracing::warn!("JWT verification error: {}", e);
+                    return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"code": 401, "message": "Invalid token"}))).into_response();
+                }
+            };
+
+            let user_id = match uuid::Uuid::parse_str(&claims.user_id) {
+                Ok(id) => id,
+                Err(_) => {
+                    return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"code": 401, "message": "Invalid token claims"}))).into_response();
+                }
+            };
+            let tenant_id = match uuid::Uuid::parse_str(&claims.tenant_id) {
+                Ok(id) => id,
+                Err(_) => {
+                    return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"code": 401, "message": "Invalid token claims"}))).into_response();
+                }
+            };
+
+            request.extensions_mut().insert(UserContext { user_id, tenant_id });
+            next.run(request).await
+        }
+        None => {
+            (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"code": 401, "message": "Missing authorization token"}))).into_response()
         }
     }
-
-    next.run(request).await
 }
 
 #[derive(Clone)]
 pub struct AppState {
-    pub infra: Infra,
-    pub config: AppConfig,
+    pub registry: Registry,
+    pub config: crate::config::AppConfig,
     pub auth_service: AuthService,
 }
 
-use crate::datasource::Infra;
-use crate::config::AppConfig;
-
 impl AppState {
-    pub async fn new(config: AppConfig) -> Result<Self, sqlx::Error> {
-        let infra = Infra::new(&config).await?;
-        let auth_service = AuthService::new(infra.db.clone(), Arc::new(config.server.clone()));
+    pub async fn new(config: crate::config::AppConfig) -> anyhow::Result<Self> {
+        let registry = Registry::new(&config).await?;
+        let auth_service = AuthService::new(registry.db_dao.clone(), Arc::new(config.server.clone()));
 
         Ok(Self {
-            infra,
+            registry,
             config,
             auth_service,
         })
@@ -69,8 +90,8 @@ impl axum::extract::FromRef<AppState> for AuthService {
     }
 }
 
-impl axum::extract::FromRef<AppState> for Infra {
+impl axum::extract::FromRef<AppState> for Registry {
     fn from_ref(state: &AppState) -> Self {
-        state.infra.clone()
+        state.registry.clone()
     }
 }

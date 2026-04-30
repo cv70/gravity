@@ -27,7 +27,7 @@ pub async fn login(
 ) -> Result<ApiResponse<AuthResponse>, ApiError> {
     let response = app_state
         .auth_service
-        .login(&req.email, &req.password)
+        .login(&req.email, &req.password, &req.organization_name)
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
@@ -41,13 +41,21 @@ pub async fn refresh(
     State(app_state): State<Arc<AppState>>,
     Json(req): Json<RefreshRequest>,
 ) -> Result<ApiResponse<serde_json::Value>, ApiError> {
-    let _claims = app_state
+    // Verify it's a valid refresh token
+    let claims = app_state
         .auth_service
-        .verify_token(&req.refresh_token)
+        .verify_refresh_token(&req.refresh_token)
+        .map_err(|e| ApiError::internal_error(e.to_string()))?
+        .ok_or_else(|| ApiError::unauthorized("Invalid or expired refresh token"))?;
+
+    // Generate new access token
+    let access_token = app_state
+        .auth_service
+        .generate_access_from_refresh(&claims)
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
     let response = serde_json::json!({
-        "access_token": "refreshed",
+        "access_token": access_token,
     });
     Ok(ApiResponse::success(response))
 }

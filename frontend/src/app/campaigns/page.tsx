@@ -5,6 +5,7 @@ import { Plus, Play, Pause } from 'lucide-react'
 
 export function CampaignsPage() {
   const queryClient = useQueryClient()
+  const [showModal, setShowModal] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['campaigns'],
@@ -23,20 +24,22 @@ export function CampaignsPage() {
 
   const createMutation = useMutation({
     mutationFn: campaignsService.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+      setShowModal(false)
+    },
   })
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    const data = new FormData(form)
+    const formData = new FormData(form)
     await createMutation.mutateAsync({
-      name: data.get('name') as string,
-      campaign_type: data.get('type') as 'social' | 'email' | 'content' | 'ads',
+      name: formData.get('name') as string,
+      campaign_type: formData.get('type') as 'social' | 'email' | 'content' | 'ads',
       status: 'draft',
     })
     form.reset()
-    document.getElementById('create-modal')?.close()
   }
 
   return (
@@ -47,7 +50,7 @@ export function CampaignsPage() {
           <p className="text-gray-500 mt-1">共 {data?.total ?? 0} 个活动</p>
         </div>
         <button
-          onClick={() => document.getElementById('create-modal')?.showModal()}
+          onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700"
         >
           <Plus className="h-4 w-4" />
@@ -80,6 +83,7 @@ export function CampaignsPage() {
                     <span className={`px-2 py-1 text-xs rounded-full ${
                       campaign.status === 'active' ? 'bg-green-100 text-green-700' :
                       campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                      campaign.status === 'completed' ? 'bg-blue-100 text-blue-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
                       {campaign.status}
@@ -92,18 +96,20 @@ export function CampaignsPage() {
                     {campaign.status === 'active' ? (
                       <button
                         onClick={() => pauseMutation.mutate(campaign.id)}
-                        className="inline-flex items-center gap-1 text-sm text-yellow-600 hover:text-yellow-800"
+                        disabled={pauseMutation.isPending}
+                        className="inline-flex items-center gap-1 text-sm text-yellow-600 hover:text-yellow-800 disabled:opacity-50"
                       >
-                        <Pause className="h-4 w-4" /> 暂停
+                        <Pause className="h-4 w-4" /> {pauseMutation.isPending ? '暂停中...' : '暂停'}
                       </button>
-                    ) : (
+                    ) : campaign.status !== 'completed' ? (
                       <button
                         onClick={() => launchMutation.mutate(campaign.id)}
-                        className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800"
+                        disabled={launchMutation.isPending}
+                        className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800 disabled:opacity-50"
                       >
-                        <Play className="h-4 w-4" /> 启动
+                        <Play className="h-4 w-4" /> {launchMutation.isPending ? '启动中...' : '启动'}
                       </button>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -112,28 +118,32 @@ export function CampaignsPage() {
         )}
       </div>
 
-      <dialog id="create-modal" className="p-6 rounded-xl bg-white shadow-xl">
-        <h3 className="text-lg font-semibold mb-4">创建活动</h3>
-        <form onSubmit={handleCreate} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">活动名称 *</label>
-            <input name="name" required className="w-full px-3 py-2 border rounded-lg" />
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">创建活动</h3>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">活动名称 *</label>
+                <input name="name" required className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">类型 *</label>
+                <select name="type" required className="w-full px-3 py-2 border rounded-lg">
+                  <option value="email">邮件</option>
+                  <option value="social">社交媒体</option>
+                  <option value="content">内容营销</option>
+                  <option value="ads">付费广告</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg">取消</button>
+                <button type="submit" className="px-4 py-2 bg-brand-600 text-white rounded-lg">创建</button>
+              </div>
+            </form>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">类型 *</label>
-            <select name="type" required className="w-full px-3 py-2 border rounded-lg">
-              <option value="email">邮件</option>
-              <option value="social">社交媒体</option>
-              <option value="content">内容营销</option>
-              <option value="ads">付费广告</option>
-            </select>
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => document.getElementById('create-modal')?.close()} className="px-4 py-2 border rounded-lg">取消</button>
-            <button type="submit" className="px-4 py-2 bg-brand-600 text-white rounded-lg">创建</button>
-          </div>
-        </form>
-      </dialog>
+        </div>
+      )}
     </div>
   )
 }

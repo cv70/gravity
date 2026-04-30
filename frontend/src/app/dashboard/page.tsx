@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { analyticsService } from '@/services/analytics'
 import { campaignsService } from '@/services/campaigns'
-import { Users, Megaphone, Target, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Users, Megaphone, Target, TrendingUp } from 'lucide-react'
 
 export function DashboardPage() {
   const { data: dashboard, isLoading } = useQuery({
@@ -19,10 +19,10 @@ export function DashboardPage() {
   }
 
   const stats = [
-    { name: '总联系人', value: dashboard?.total_contacts ?? 0, change: '+12%', positive: true, icon: Users },
-    { name: '活跃活动', value: campaignsData?.data.filter((c) => c.status === 'active').length ?? 0, change: '+3', positive: true, icon: Megaphone },
-    { name: '总转化数', value: dashboard?.total_conversions ?? 0, change: '+8%', positive: true, icon: Target },
-    { name: '转化率', value: `${((dashboard?.conversion_rate ?? 0) * 100).toFixed(1)}%`, change: '-2%', positive: false, icon: TrendingUp },
+    { name: '总联系人', value: dashboard?.total_contacts ?? 0, icon: Users },
+    { name: '活跃活动', value: campaignsData?.data?.filter((c) => c.status === 'active').length ?? 0, icon: Megaphone },
+    { name: '总转化数', value: dashboard?.total_conversions ?? 0, icon: Target },
+    { name: '转化率', value: `${((dashboard?.conversion_rate ?? 0) * 100).toFixed(1)}%`, icon: TrendingUp },
   ]
 
   return (
@@ -38,10 +38,6 @@ export function DashboardPage() {
             <div className="flex items-center justify-between">
               <div className="p-2 bg-brand-50 rounded-lg">
                 <stat.icon className="h-5 w-5 text-brand-600" />
-              </div>
-              <div className={`flex items-center gap-1 text-sm ${stat.positive ? 'text-green-600' : 'text-red-600'}`}>
-                {stat.positive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                {stat.change}
               </div>
             </div>
             <div className="mt-4">
@@ -66,7 +62,10 @@ export function DashboardPage() {
                     <p className="text-sm text-gray-500">{campaign.campaign_type} · {campaign.status}</p>
                   </div>
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    campaign.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    campaign.status === 'active' ? 'bg-green-100 text-green-700' :
+                    campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                    campaign.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                    'bg-gray-100 text-gray-700'
                   }`}>
                     {campaign.status}
                   </span>

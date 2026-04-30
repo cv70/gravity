@@ -6,6 +6,10 @@ import { DashboardPage } from '@/app/dashboard/page'
 import { ContactsPage } from '@/app/contacts/page'
 import { CampaignsPage } from '@/app/campaigns/page'
 import { AnalyticsPage } from '@/app/analytics/page'
+import { ContentsPage } from '@/app/content/page'
+import { ChannelsPage } from '@/app/channels/page'
+import { WorkflowsPage } from '@/app/workflows/page'
+import { SettingsPage } from '@/app/settings/page'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -21,6 +25,10 @@ export default function App() {
       <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
       <Route path="/campaigns" element={<ProtectedRoute><CampaignsPage /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
+      <Route path="/content" element={<ProtectedRoute><ContentsPage /></ProtectedRoute>} />
+      <Route path="/channels" element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
+      <Route path="/workflows" element={<ProtectedRoute><WorkflowsPage /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     </Routes>
   )
 }

@@ -8,6 +8,7 @@ pub struct User {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub email: String,
+    #[serde(skip_serializing)]
     pub password_hash: String,
     pub name: String,
     pub role: String,
@@ -59,6 +60,7 @@ impl Organization {
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
+    pub organization_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

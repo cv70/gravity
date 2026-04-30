@@ -10,6 +10,10 @@ import {
   LogOut,
   Menu,
   X,
+  FileText,
+  MessageCircle,
+  GitBranch,
+  Settings,
 } from 'lucide-react'
 
 const navigation = [
@@ -17,6 +21,10 @@ const navigation = [
   { name: '联系人', href: '/contacts', icon: Users },
   { name: '营销活动', href: '/campaigns', icon: Megaphone },
   { name: '数据分析', href: '/analytics', icon: BarChart3 },
+  { name: '内容管理', href: '/content', icon: FileText },
+  { name: '渠道管理', href: '/channels', icon: MessageCircle },
+  { name: '工作流', href: '/workflows', icon: GitBranch },
+  { name: '设置', href: '/settings', icon: Settings },
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {

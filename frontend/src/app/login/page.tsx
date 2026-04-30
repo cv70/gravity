@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [organizationName, setOrganizationName] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
@@ -13,7 +14,7 @@ export function LoginPage() {
     e.preventDefault()
     setError('')
     try {
-      await login(email, password)
+      await login(email, password, organizationName)
       navigate('/')
     } catch {
       setError('邮箱或密码错误')
@@ -32,6 +33,17 @@ export function LoginPage() {
           {error && (
             <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg">{error}</div>
           )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">组织名称</label>
+            <input
+              type="text"
+              value={organizationName}
+              onChange={(e) => setOrganizationName(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+              placeholder="我的公司"
+              required
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
             <input

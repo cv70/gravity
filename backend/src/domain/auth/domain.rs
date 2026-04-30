@@ -1,93 +1,105 @@
 use anyhow::Result;
 use bcrypt::{hash, verify, DEFAULT_COST};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::schema::{AuthResponse, Organization, RegisterRequest, User, UserResponse};
+use super::schema::{AuthResponse, LoginRequest, Organization, RegisterRequest, User, UserResponse};
 use crate::config::ServerConfig;
+use crate::datasource::dbdao::DBDao;
+use crate::datasource::dbdao::schema::{OrganizationRow, UserRow};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
     pub user_id: String,
     pub tenant_id: String,
+    pub token_type: String,
     pub exp: usize,
     pub iat: usize,
 }
 
 #[derive(Clone)]
 pub struct AuthService {
-    pool: PgPool,
+    db_dao: DBDao,
     server_config: Arc<ServerConfig>,
 }
 
 impl AuthService {
-    pub fn new(pool: PgPool, server_config: Arc<ServerConfig>) -> Self {
-        Self { pool, server_config }
+    pub fn new(db_dao: DBDao, server_config: Arc<ServerConfig>) -> Self {
+        Self { db_dao, server_config }
     }
 
     pub async fn register(&self, req: &RegisterRequest) -> Result<AuthResponse> {
         let password_hash = hash(&req.password, DEFAULT_COST)?;
 
-        // Create organization
-        let org = Organization::new(req.organization_name.clone());
-        let org: Organization = sqlx::query_as(
-            "INSERT INTO organizations (id, name, plan, settings) VALUES ($1, $2, $3, $4) RETURNING *",
-        )
-        .bind(org.id)
-        .bind(&org.name)
-        .bind(&org.plan)
-        .bind(&org.settings)
-        .fetch_one(&self.pool)
-        .await?;
+        let org_id = Uuid::new_v4();
+        let org_row = self.db_dao.create_organization(
+            org_id,
+            &req.organization_name,
+            "free",
+            serde_json::json!({}),
+        ).await?;
 
-        // Create user
-        let mut user = User::new(org.id, req.email.clone(), password_hash, req.name.clone());
-        user.role = "organization_owner".to_string();
+        let user_id = Uuid::new_v4();
+        let user_row = self.db_dao.create_user(
+            user_id,
+            org_row.id,
+            &req.email,
+            &password_hash,
+            &req.name,
+            "organization_owner",
+        ).await?;
 
-        let user: User = sqlx::query_as(
-            r#"
-            INSERT INTO users (id, tenant_id, email, password_hash, name, role)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *
-            "#,
-        )
-        .bind(user.id)
-        .bind(user.tenant_id)
-        .bind(&user.email)
-        .bind(&user.password_hash)
-        .bind(&user.name)
-        .bind(&user.role)
-        .fetch_one(&self.pool)
-        .await?;
+        let user = User {
+            id: user_row.id,
+            tenant_id: user_row.tenant_id,
+            email: user_row.email,
+            password_hash: user_row.password_hash,
+            name: user_row.name,
+            role: user_row.role,
+            last_login_at: user_row.last_login_at,
+            created_at: user_row.created_at,
+            updated_at: user_row.updated_at,
+        };
 
         let tokens = self.generate_tokens(&user)?;
         Ok(tokens)
     }
 
-    pub async fn login(&self, email: &str, password: &str) -> Result<Option<AuthResponse>> {
-        let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE email = $1")
-            .bind(email)
-            .fetch_optional(&self.pool)
-            .await?;
+    pub async fn login(&self, email: &str, password: &str, organization_name: &str) -> Result<Option<AuthResponse>> {
+        let org_row = self.db_dao.get_organization_by_name(organization_name).await?;
 
-        let user = match user {
+        let tenant_id = match org_row {
+            Some(org) => org.id,
+            None => return Ok(None),
+        };
+
+        let user_row = self.db_dao.get_user_by_email(email, tenant_id).await?;
+
+        let user_row = match user_row {
             Some(u) => u,
             None => return Ok(None),
         };
 
-        if !verify(password, &user.password_hash)? {
+        if !verify(password, &user_row.password_hash)? {
             return Ok(None);
         }
 
-        // Update last login
-        sqlx::query("UPDATE users SET last_login_at = NOW() WHERE id = $1")
-            .bind(user.id)
-            .execute(&self.pool)
-            .await?;
+        self.db_dao.update_last_login(user_row.id).await?;
+
+        let user = User {
+            id: user_row.id,
+            tenant_id: user_row.tenant_id,
+            email: user_row.email,
+            password_hash: user_row.password_hash,
+            name: user_row.name,
+            role: user_row.role,
+            last_login_at: user_row.last_login_at,
+            created_at: user_row.created_at,
+            updated_at: user_row.updated_at,
+        };
 
         let tokens = self.generate_tokens(&user)?;
         Ok(Some(tokens))
@@ -95,13 +107,14 @@ impl AuthService {
 
     pub fn generate_tokens(&self, user: &User) -> Result<AuthResponse> {
         let now = chrono::Utc::now().timestamp() as usize;
-        let access_exp = now + 15 * 60; // 15 minutes
-        let refresh_exp = now + 7 * 24 * 60 * 60; // 7 days
+        let access_exp = now + 15 * 60;
+        let refresh_exp = now + 7 * 24 * 60 * 60;
 
         let access_claims = Claims {
             sub: user.email.clone(),
             user_id: user.id.to_string(),
             tenant_id: user.tenant_id.to_string(),
+            token_type: "access".to_string(),
             exp: access_exp,
             iat: now,
         };
@@ -110,20 +123,23 @@ impl AuthService {
             sub: user.email.clone(),
             user_id: user.id.to_string(),
             tenant_id: user.tenant_id.to_string(),
+            token_type: "refresh".to_string(),
             exp: refresh_exp,
             iat: now,
         };
 
         let access_token = encode(
-            &Header::default(),
+            &Header::new(Algorithm::RS256),
             &access_claims,
-            &EncodingKey::from_secret(self.server_config.jwt_secret.as_bytes()),
+            &EncodingKey::from_rsa_pem(self.server_config.jwt_private_key.as_bytes())
+                .map_err(|e| anyhow::anyhow!("Invalid RSA private key: {}", e))?,
         )?;
 
         let refresh_token = encode(
-            &Header::default(),
+            &Header::new(Algorithm::RS256),
             &refresh_claims,
-            &EncodingKey::from_secret(self.server_config.jwt_secret.as_bytes()),
+            &EncodingKey::from_rsa_pem(self.server_config.jwt_private_key.as_bytes())
+                .map_err(|e| anyhow::anyhow!("Invalid RSA private key: {}", e))?,
         )?;
 
         Ok(AuthResponse {
@@ -139,15 +155,52 @@ impl AuthService {
     }
 
     pub fn verify_token(&self, token: &str) -> Result<Option<Claims>> {
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.validate_exp = true;
+
         let token_data = decode::<Claims>(
             token,
-            &DecodingKey::from_secret(self.server_config.jwt_secret.as_bytes()),
-            &Validation::default(),
+            &DecodingKey::from_rsa_pem(self.server_config.jwt_public_key.as_bytes())
+                .map_err(|e| anyhow::anyhow!("Invalid RSA public key: {}", e))?,
+            &validation,
         );
 
         match token_data {
             Ok(data) => Ok(Some(data.claims)),
-            Err(_) => Ok(None),
+            Err(e) => {
+                tracing::warn!("JWT verification error: {}", e);
+                Ok(None)
+            }
         }
+    }
+
+    pub fn verify_refresh_token(&self, token: &str) -> Result<Option<Claims>> {
+        let claims = self.verify_token(token)?;
+        match claims {
+            Some(c) if c.token_type == "refresh" => Ok(Some(c)),
+            _ => Ok(None),
+        }
+    }
+
+    pub fn generate_access_from_refresh(&self, refresh_claims: &Claims) -> Result<String> {
+        let now = chrono::Utc::now().timestamp() as usize;
+        let access_exp = now + 15 * 60;
+
+        let access_claims = Claims {
+            sub: refresh_claims.sub.clone(),
+            user_id: refresh_claims.user_id.clone(),
+            tenant_id: refresh_claims.tenant_id.clone(),
+            token_type: "access".to_string(),
+            exp: access_exp,
+            iat: now,
+        };
+
+        encode(
+            &Header::new(Algorithm::RS256),
+            &access_claims,
+            &EncodingKey::from_rsa_pem(self.server_config.jwt_private_key.as_bytes())
+                .map_err(|e| anyhow::anyhow!("Invalid RSA private key: {}", e))?,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to generate access token: {}", e).into())
     }
 }

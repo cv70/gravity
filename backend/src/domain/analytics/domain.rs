@@ -1,50 +1,33 @@
 use anyhow::Result;
-use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::schema::AnalyticsDashboard;
+use crate::datasource::dbdao::DBDao;
 
 pub struct AnalyticsRepository {
-    pool: PgPool,
+    db_dao: DBDao,
 }
 
 impl AnalyticsRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(db_dao: DBDao) -> Self {
+        Self { db_dao }
     }
 
     pub async fn get_dashboard(&self, tenant_id: Uuid) -> Result<AnalyticsDashboard> {
-        let total_contacts: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM contacts WHERE tenant_id = $1 AND subscribed = true",
-        )
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await?;
+        let total_contacts = self.db_dao.count_contacts(tenant_id, true).await?;
+        let active_campaigns = self.db_dao.count_campaigns_by_status(tenant_id, "active").await?;
+        let total_conversions = self.db_dao.count_conversions(tenant_id).await?;
 
-        let active_campaigns: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM campaigns WHERE tenant_id = $1 AND status = 'Active'",
-        )
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await?;
-
-        let total_conversions: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM conversions WHERE tenant_id = $1",
-        )
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await?;
-
-        let conversion_rate = if total_contacts.0 > 0 {
-            total_conversions.0 as f64 / total_contacts.0 as f64
+        let conversion_rate = if total_contacts > 0 {
+            total_conversions as f64 / total_contacts as f64
         } else {
             0.0
         };
 
         Ok(AnalyticsDashboard {
-            total_contacts: total_contacts.0,
-            active_campaigns: active_campaigns.0,
-            total_conversions: total_conversions.0,
+            total_contacts,
+            active_campaigns,
+            total_conversions,
             conversion_rate,
         })
     }
@@ -56,20 +39,33 @@ impl AnalyticsRepository {
         event: &str,
         properties: serde_json::Value,
     ) -> Result<()> {
-        sqlx::query(
-            r#"
-            INSERT INTO events (id, tenant_id, contact_id, event, properties, occurred_at)
-            VALUES ($1, $2, $3, $4, $5, NOW())
-            "#,
-        )
-        .bind(Uuid::new_v4())
-        .bind(tenant_id)
-        .bind(contact_id)
-        .bind(event)
-        .bind(&properties)
-        .execute(&self.pool)
-        .await?;
+        self.db_dao.record_event(
+            Uuid::new_v4(),
+            tenant_id,
+            contact_id,
+            event,
+            properties,
+        ).await
+    }
 
-        Ok(())
+    pub async fn record_conversion(
+        &self,
+        id: Uuid,
+        tenant_id: Uuid,
+        contact_id: Uuid,
+        goal_id: Option<&str>,
+        value: Option<f64>,
+        currency: &str,
+        properties: serde_json::Value,
+    ) -> Result<()> {
+        self.db_dao.record_conversion(
+            id,
+            tenant_id,
+            contact_id,
+            goal_id,
+            value,
+            currency,
+            properties,
+        ).await
     }
 }

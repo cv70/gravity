@@ -59,7 +59,7 @@ export function AnalyticsPage() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-gray-700">{step.step}</span>
                       <span className="text-sm text-gray-500">
-                        {step.count.toLocaleString()} {index > 0 && `(${step.dropoff_rate}%)`}
+                        {step.count.toLocaleString()} {index > 0 && `(${(step.dropoff_rate * 100).toFixed(1)}%)`}
                       </span>
                     </div>
                     <div className="h-8 bg-gray-100 rounded-lg overflow-hidden">

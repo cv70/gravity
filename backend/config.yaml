@@ -2,7 +2,8 @@ server:
   env: dev
   host: 0.0.0.0
   port: 8080
-  jwt_secret: dev_secret_change_in_production
+  jwt_private_key: jwt_private.pem
+  jwt_public_key: jwt_public.pem
 
 database:
   host: localhost

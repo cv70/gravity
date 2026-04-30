@@ -1,5 +1,3 @@
-import api from './api'
-
 export interface ApiResponse<T> {
   code: number
   message: string

@@ -25,18 +25,13 @@ pub async fn list_contacts(
     let page = query.page.unwrap_or(1).max(1);
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
 
-    let repo = ContactRepository::new(app_state.infra.db.clone());
-    let (contacts, total) = repo
+    let repo = ContactRepository::new(app_state.registry.db_dao.clone());
+    let result = repo
         .list(ctx.tenant_id, page, limit, query.search.as_deref())
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
-    Ok(ApiResponse::success(ContactListResponse {
-        data: contacts,
-        total,
-        page,
-        limit,
-    }))
+    Ok(ApiResponse::success(result))
 }
 
 pub async fn create_contact(
@@ -44,7 +39,7 @@ pub async fn create_contact(
     Extension(ctx): Extension<UserContext>,
     Json(req): Json<CreateContactRequest>,
 ) -> Result<ApiResponse<Contact>, ApiError> {
-    let repo = ContactRepository::new(app_state.infra.db.clone());
+    let repo = ContactRepository::new(app_state.registry.db_dao.clone());
     let contact = repo
         .create(ctx.tenant_id, &req)
         .await
@@ -60,7 +55,7 @@ pub async fn get_contact(
     Extension(ctx): Extension<UserContext>,
     Path(id): Path<Uuid>,
 ) -> Result<ApiResponse<Contact>, ApiError> {
-    let repo = ContactRepository::new(app_state.infra.db.clone());
+    let repo = ContactRepository::new(app_state.registry.db_dao.clone());
     let contact = repo
         .get_by_id(ctx.tenant_id, id)
         .await
@@ -78,7 +73,7 @@ pub async fn update_contact(
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateContactRequest>,
 ) -> Result<ApiResponse<Contact>, ApiError> {
-    let repo = ContactRepository::new(app_state.infra.db.clone());
+    let repo = ContactRepository::new(app_state.registry.db_dao.clone());
     let contact = repo
         .update(ctx.tenant_id, id, &req)
         .await
@@ -95,7 +90,7 @@ pub async fn delete_contact(
     Extension(ctx): Extension<UserContext>,
     Path(id): Path<Uuid>,
 ) -> Result<ApiResponse<()>, ApiError> {
-    let repo = ContactRepository::new(app_state.infra.db.clone());
+    let repo = ContactRepository::new(app_state.registry.db_dao.clone());
     let deleted = repo
         .delete(ctx.tenant_id, id)
         .await

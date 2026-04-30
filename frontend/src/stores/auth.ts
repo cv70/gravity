@@ -13,7 +13,7 @@ interface AuthState {
   accessToken: string | null
   refreshToken: string | null
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, organizationName?: string) => Promise<void>
   logout: () => void
 }
 
@@ -25,11 +25,11 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
 
-      login: async (email: string, password: string) => {
+      login: async (email: string, password: string, organizationName?: string) => {
         const response = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, organization_name: organizationName }),
         })
         if (!response.ok) throw new Error('Login failed')
         const data = await response.json()
