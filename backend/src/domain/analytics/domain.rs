@@ -15,7 +15,10 @@ impl AnalyticsRepository {
 
     pub async fn get_dashboard(&self, tenant_id: Uuid) -> Result<AnalyticsDashboard> {
         let total_contacts = self.db_dao.count_contacts(tenant_id, true).await?;
-        let active_campaigns = self.db_dao.count_campaigns_by_status(tenant_id, "active").await?;
+        let active_campaigns = self
+            .db_dao
+            .count_campaigns_by_status(tenant_id, "active")
+            .await?;
         let total_conversions = self.db_dao.count_conversions(tenant_id).await?;
 
         let conversion_rate = if total_contacts > 0 {
@@ -39,13 +42,9 @@ impl AnalyticsRepository {
         event: &str,
         properties: serde_json::Value,
     ) -> Result<()> {
-        self.db_dao.record_event(
-            Uuid::new_v4(),
-            tenant_id,
-            contact_id,
-            event,
-            properties,
-        ).await
+        self.db_dao
+            .record_event(Uuid::new_v4(), tenant_id, contact_id, event, properties)
+            .await
     }
 
     pub async fn record_conversion(
@@ -58,14 +57,10 @@ impl AnalyticsRepository {
         currency: &str,
         properties: serde_json::Value,
     ) -> Result<()> {
-        self.db_dao.record_conversion(
-            id,
-            tenant_id,
-            contact_id,
-            goal_id,
-            value,
-            currency,
-            properties,
-        ).await
+        self.db_dao
+            .record_conversion(
+                id, tenant_id, contact_id, goal_id, value, currency, properties,
+            )
+            .await
     }
 }

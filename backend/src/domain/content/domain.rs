@@ -15,17 +15,26 @@ impl ContentRepository {
 
     pub async fn create(&self, tenant_id: Uuid, req: &CreateContentRequest) -> Result<Content> {
         let id = Uuid::new_v4();
-        let content = Content::new(tenant_id, req.name.clone(), req.content_type.clone(), req.content.clone(), req.campaign_id);
-
-        let row = self.db_dao.create_content(
-            id,
+        let content = Content::new(
             tenant_id,
+            req.name.clone(),
+            req.content_type.clone(),
+            req.content.clone(),
             req.campaign_id,
-            &content.name,
-            &content.content_type,
-            content.content.clone(),
-            &content.status,
-        ).await?;
+        );
+
+        let row = self
+            .db_dao
+            .create_content(
+                id,
+                tenant_id,
+                req.campaign_id,
+                &content.name,
+                &content.content_type,
+                content.content.clone(),
+                &content.status,
+            )
+            .await?;
 
         Ok(Content {
             id: row.id,
@@ -40,7 +49,12 @@ impl ContentRepository {
         })
     }
 
-    pub async fn list(&self, tenant_id: Uuid, page: i64, limit: i64) -> Result<ContentListResponse> {
+    pub async fn list(
+        &self,
+        tenant_id: Uuid,
+        page: i64,
+        limit: i64,
+    ) -> Result<ContentListResponse> {
         let offset = (page - 1) * limit;
 
         let (rows, total) = self.db_dao.list_contents(tenant_id, limit, offset).await?;

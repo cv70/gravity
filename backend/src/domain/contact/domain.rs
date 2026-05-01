@@ -18,15 +18,18 @@ impl ContactRepository {
         let tags = req.tags.clone().unwrap_or_default();
         let attributes = req.attributes.clone().unwrap_or(serde_json::json!({}));
 
-        let row = self.db_dao.create_contact(
-            id,
-            tenant_id,
-            &req.email,
-            &req.name,
-            req.phone.as_deref(),
-            tags,
-            attributes,
-        ).await?;
+        let row = self
+            .db_dao
+            .create_contact(
+                id,
+                tenant_id,
+                &req.email,
+                &req.name,
+                req.phone.as_deref(),
+                tags,
+                attributes,
+            )
+            .await?;
 
         Ok(Contact {
             id: row.id,
@@ -69,16 +72,17 @@ impl ContactRepository {
         let offset = (page - 1) * limit;
 
         let search_pattern = search.map(|s| {
-            let escaped = s.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+            let escaped = s
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_");
             format!("%{}%", escaped)
         });
 
-        let (rows, total) = self.db_dao.list_contacts(
-            tenant_id,
-            limit,
-            offset,
-            search_pattern.as_deref(),
-        ).await?;
+        let (rows, total) = self
+            .db_dao
+            .list_contacts(tenant_id, limit, offset, search_pattern.as_deref())
+            .await?;
 
         let contacts: Vec<Contact> = rows
             .into_iter()
@@ -110,16 +114,19 @@ impl ContactRepository {
         id: Uuid,
         req: &UpdateContactRequest,
     ) -> Result<Option<Contact>> {
-        let row = self.db_dao.update_contact(
-            tenant_id,
-            id,
-            req.email.as_deref(),
-            req.name.as_deref(),
-            req.phone.as_deref(),
-            req.tags.clone(),
-            req.attributes.clone(),
-            req.subscribed,
-        ).await?;
+        let row = self
+            .db_dao
+            .update_contact(
+                tenant_id,
+                id,
+                req.email.as_deref(),
+                req.name.as_deref(),
+                req.phone.as_deref(),
+                req.tags.clone(),
+                req.attributes.clone(),
+                req.subscribed,
+            )
+            .await?;
 
         Ok(row.map(|r| Contact {
             id: r.id,

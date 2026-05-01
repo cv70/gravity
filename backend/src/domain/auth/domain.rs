@@ -5,11 +5,13 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::schema::{AuthResponse, LoginRequest, Organization, RegisterRequest, User, UserResponse};
-use crate::domain::automation::domain::AutomationRepository;
+use super::schema::{
+    AuthResponse, MeResponse, OrganizationResponse, RegisterRequest, User, UserResponse,
+};
 use crate::config::ServerConfig;
-use crate::datasource::dbdao::DBDao;
 use crate::datasource::dbdao::schema::{OrganizationRow, UserRow};
+use crate::datasource::dbdao::DBDao;
+use crate::domain::automation::domain::AutomationRepository;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -29,29 +31,38 @@ pub struct AuthService {
 
 impl AuthService {
     pub fn new(db_dao: DBDao, server_config: Arc<ServerConfig>) -> Self {
-        Self { db_dao, server_config }
+        Self {
+            db_dao,
+            server_config,
+        }
     }
 
     pub async fn register(&self, req: &RegisterRequest) -> Result<AuthResponse> {
         let password_hash = hash(&req.password, DEFAULT_COST)?;
 
         let org_id = Uuid::new_v4();
-        let org_row = self.db_dao.create_organization(
-            org_id,
-            &req.organization_name,
-            "free",
-            serde_json::json!({}),
-        ).await?;
+        let org_row = self
+            .db_dao
+            .create_organization(
+                org_id,
+                &req.organization_name,
+                "free",
+                serde_json::json!({}),
+            )
+            .await?;
 
         let user_id = Uuid::new_v4();
-        let user_row = self.db_dao.create_user(
-            user_id,
-            org_row.id,
-            &req.email,
-            &password_hash,
-            &req.name,
-            "organization_owner",
-        ).await?;
+        let user_row = self
+            .db_dao
+            .create_user(
+                user_id,
+                org_row.id,
+                &req.email,
+                &password_hash,
+                &req.name,
+                "organization_owner",
+            )
+            .await?;
 
         let user = User {
             id: user_row.id,
@@ -72,8 +83,16 @@ impl AuthService {
         Ok(tokens)
     }
 
-    pub async fn login(&self, email: &str, password: &str, organization_name: &str) -> Result<Option<AuthResponse>> {
-        let org_row = self.db_dao.get_organization_by_name(organization_name).await?;
+    pub async fn login(
+        &self,
+        email: &str,
+        password: &str,
+        organization_name: &str,
+    ) -> Result<Option<AuthResponse>> {
+        let org_row = self
+            .db_dao
+            .get_organization_by_name(organization_name)
+            .await?;
 
         let tenant_id = match org_row {
             Some(org) => org.id,
@@ -107,6 +126,33 @@ impl AuthService {
 
         let tokens = self.generate_tokens(&user)?;
         Ok(Some(tokens))
+    }
+
+    pub async fn get_me(&self, user_id: Uuid, tenant_id: Uuid) -> Result<Option<MeResponse>> {
+        let user_row = match self.db_dao.get_user_by_id(user_id, tenant_id).await? {
+            Some(row) => row,
+            None => return Ok(None),
+        };
+
+        let org_row = match self.db_dao.get_organization_by_id(tenant_id).await? {
+            Some(row) => row,
+            None => return Ok(None),
+        };
+
+        Ok(Some(MeResponse {
+            user: UserResponse {
+                id: user_row.id,
+                email: user_row.email,
+                name: user_row.name,
+                role: user_row.role,
+            },
+            organization: OrganizationResponse {
+                id: org_row.id,
+                name: org_row.name,
+                plan: org_row.plan,
+                settings: org_row.settings,
+            },
+        }))
     }
 
     pub fn generate_tokens(&self, user: &User) -> Result<AuthResponse> {

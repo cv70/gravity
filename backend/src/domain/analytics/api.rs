@@ -1,13 +1,17 @@
-use axum::{extract::{Extension, Query, State}, Json};
+use axum::{
+    extract::{Extension, Query, State},
+    Json,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::analytics::domain::AnalyticsRepository;
 use crate::domain::analytics::schema::{
-    AnalyticsDashboard, ConversionRequest, FunnelStep, IdentifyRequest, PageRequest, TrackEventRequest,
+    AnalyticsDashboard, ConversionRequest, FunnelStep, IdentifyRequest, PageRequest,
+    TrackEventRequest,
 };
-use crate::utils::{ApiError, ApiResponse};
 use crate::state::AppState;
+use crate::utils::{ApiError, ApiResponse};
 
 pub async fn get_dashboard(
     State(app_state): State<Arc<AppState>>,
@@ -27,7 +31,10 @@ pub async fn track_event(
     Json(req): Json<TrackEventRequest>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let repo = AnalyticsRepository::new(app_state.registry.db_dao.clone());
-    let contact_id = req.contact_id.as_ref().and_then(|s| Uuid::parse_str(s).ok());
+    let contact_id = req
+        .contact_id
+        .as_ref()
+        .and_then(|s| Uuid::parse_str(s).ok());
     let properties = req.properties.unwrap_or(serde_json::json!({}));
 
     let tenant_id = Uuid::nil();
@@ -44,7 +51,10 @@ pub async fn identify(
     Json(req): Json<IdentifyRequest>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let repo = AnalyticsRepository::new(app_state.registry.db_dao.clone());
-    let contact_id = req.contact_id.as_ref().and_then(|s| Uuid::parse_str(s).ok());
+    let contact_id = req
+        .contact_id
+        .as_ref()
+        .and_then(|s| Uuid::parse_str(s).ok());
     let tenant_id = Uuid::nil();
 
     repo.record_event(
@@ -64,7 +74,10 @@ pub async fn track_page(
     Json(req): Json<PageRequest>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let repo = AnalyticsRepository::new(app_state.registry.db_dao.clone());
-    let contact_id = req.contact_id.as_ref().and_then(|s| Uuid::parse_str(s).ok());
+    let contact_id = req
+        .contact_id
+        .as_ref()
+        .and_then(|s| Uuid::parse_str(s).ok());
     let tenant_id = Uuid::nil();
 
     repo.record_event(
@@ -126,10 +139,26 @@ pub async fn get_funnel(
     Query(_params): Query<FunnelQuery>,
 ) -> Result<ApiResponse<serde_json::Value>, ApiError> {
     let funnel = vec![
-        FunnelStep { step: "发送".to_string(), count: 10000, dropoff_rate: 0.0 },
-        FunnelStep { step: "打开".to_string(), count: 3500, dropoff_rate: 0.65 },
-        FunnelStep { step: "点击".to_string(), count: 800, dropoff_rate: 0.77 },
-        FunnelStep { step: "转化".to_string(), count: 120, dropoff_rate: 0.85 },
+        FunnelStep {
+            step: "发送".to_string(),
+            count: 10000,
+            dropoff_rate: 0.0,
+        },
+        FunnelStep {
+            step: "打开".to_string(),
+            count: 3500,
+            dropoff_rate: 0.65,
+        },
+        FunnelStep {
+            step: "点击".to_string(),
+            count: 800,
+            dropoff_rate: 0.77,
+        },
+        FunnelStep {
+            step: "转化".to_string(),
+            count: 120,
+            dropoff_rate: 0.85,
+        },
     ];
 
     Ok(ApiResponse::success(serde_json::json!({ "steps": funnel })))

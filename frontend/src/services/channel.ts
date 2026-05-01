@@ -1,5 +1,5 @@
 import api from './api'
-import type { ChannelAccount, ChannelAccountListResponse } from '@/types'
+import type { ChannelAccount, ChannelAccountListResponse, ChannelCreatePayload, ChannelUpdatePayload } from '@/types'
 
 export const channelService = {
   list: async () => {
@@ -7,26 +7,12 @@ export const channelService = {
     return data.data as ChannelAccountListResponse
   },
 
-  create: async (payload: {
-    platform: string
-    name: string
-    credentials_encrypted: string
-    settings: Record<string, unknown>
-    status?: string
-  }) => {
+  create: async (payload: ChannelCreatePayload) => {
     const { data } = await api.post('/channels', payload)
     return data.data as ChannelAccount
   },
 
-  update: async (
-    id: string,
-    payload: {
-      name?: string
-      status?: string
-      settings?: Record<string, unknown>
-      last_sync_at?: string
-    },
-  ) => {
+  update: async (id: string, payload: ChannelUpdatePayload) => {
     const { data } = await api.patch(`/channels/${id}`, payload)
     return data.data as ChannelAccount
   },

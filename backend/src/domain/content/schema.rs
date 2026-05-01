@@ -17,7 +17,13 @@ pub struct Content {
 }
 
 impl Content {
-    pub fn new(tenant_id: Uuid, name: String, content_type: String, content: serde_json::Value, campaign_id: Option<Uuid>) -> Self {
+    pub fn new(
+        tenant_id: Uuid,
+        name: String,
+        content_type: String,
+        content: serde_json::Value,
+        campaign_id: Option<Uuid>,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             tenant_id,

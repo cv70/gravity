@@ -1,10 +1,10 @@
 # Gravity - 一站式自动化营销运营增长转化平台
 
-> 面向企业的全自动运营中台，统一承接获客、培育、转化、复购、留存、召回和裂变等全链路运营工作。
+> 面向企业的全自动运营中台：统一承接获客、培育、转化、复购、留存、召回和裂变等全链路运营工作。
 
 ## 项目定位
 
-Gravity 不是单点营销工具，也不是单纯的活动管理系统，而是一个可持续运行的自动化运营系统。系统通过数据采集、用户识别、智能分群、策略决策、内容生成、渠道执行、效果回传和持续优化，把原本依赖人工的运营工作尽可能交给系统自动完成。
+Gravity 不是单点营销工具，也不是独立的 CRM，而是一个可持续运行的自动化运营系统。系统通过统一的数据采集、身份识别、智能分群、策略决策、内容生成、渠道执行、效果回传和持续优化，把原本依赖人工的运营工作尽可能交给系统自动完成。
 
 ## 最终目标
 
@@ -52,23 +52,17 @@ Gravity 不是单点营销工具，也不是单纯的活动管理系统，而是
 
 ## 项目结构
 
-```
+```text
 gravity/
-├── crates/               # Rust 后端 (模块化单体)
-│   ├── gravity-api/      # HTTP API 层
-│   ├── gravity-core/     # 核心领域模型
-│   ├── gravity-db/       # 数据库访问层
-│   ├── gravity-channels/ # 第三方渠道集成
-│   ├── gravity-workflow/ # 工作流引擎
-│   ├── gravity-analytics/# 分析引擎
-│   └── gravity-common/   # 共享工具
-├── frontend/             # React 前端
-├── docker-compose.yml    # 本地开发环境
-└── Cargo.toml            # Rust workspace
+├── backend/             # Rust 后端
+├── frontend/            # React 前端
+├── docs/                # 系统设计文档
+└── README.md            # 项目总入口
 ```
 
 ## 文档导航
 
+- [产品与架构蓝图](./docs/BLUEPRINT.md)
 - [架构设计](./docs/ARCHITECTURE.md)
 - [工作流引擎](./docs/WORKFLOW.md)
 - [渠道集成](./docs/CHANNELS.md)
@@ -83,7 +77,7 @@ gravity/
 docker compose up -d
 
 # 后端开发
-cd crates/gravity-api && cargo run
+cd backend && cargo run
 
 # 前端开发
 cd frontend && npm install && npm run dev

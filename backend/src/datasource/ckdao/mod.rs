@@ -61,7 +61,9 @@ impl CkAnalyticsDao {
             r#"INSERT INTO events (id, tenant_id, contact_id, event, properties, occurred_at) VALUES ('{}', '{}', {}, '{}', '{}', '{}')"#,
             event_id,
             tenant_id,
-            contact_id.map(|id| format!("'{}'", id)).unwrap_or_else(|| "NULL".to_string()),
+            contact_id
+                .map(|id| format!("'{}'", id))
+                .unwrap_or_else(|| "NULL".to_string()),
             event_type,
             properties.to_string().replace('\'', "\\'"),
             occurred_at.format("%Y-%m-%d %H:%M:%S%.3f"),
@@ -93,11 +95,17 @@ impl CkAnalyticsDao {
         }
 
         if let Some(start) = start_time {
-            conditions.push(format!("occurred_at >= '{}'", start.format("%Y-%m-%d %H:%M:%S%.3f")));
+            conditions.push(format!(
+                "occurred_at >= '{}'",
+                start.format("%Y-%m-%d %H:%M:%S%.3f")
+            ));
         }
 
         if let Some(end) = end_time {
-            conditions.push(format!("occurred_at <= '{}'", end.format("%Y-%m-%d %H:%M:%S%.3f")));
+            conditions.push(format!(
+                "occurred_at <= '{}'",
+                end.format("%Y-%m-%d %H:%M:%S%.3f")
+            ));
         }
 
         let where_clause = conditions.join(" AND ");
@@ -118,7 +126,8 @@ impl CkAnalyticsDao {
         let json: serde_json::Value = serde_json::from_str(&text)
             .unwrap_or_else(|_| serde_json::json!({ "data": [], "rows": 0 }));
 
-        let data = json.get("data")
+        let data = json
+            .get("data")
             .and_then(|d| d.as_array())
             .cloned()
             .unwrap_or_default();
@@ -141,11 +150,17 @@ impl CkAnalyticsDao {
         ];
 
         if let Some(start) = start_time {
-            conditions.push(format!("occurred_at >= '{}'", start.format("%Y-%m-%d %H:%M:%S%.3f")));
+            conditions.push(format!(
+                "occurred_at >= '{}'",
+                start.format("%Y-%m-%d %H:%M:%S%.3f")
+            ));
         }
 
         if let Some(end) = end_time {
-            conditions.push(format!("occurred_at <= '{}'", end.format("%Y-%m-%d %H:%M:%S%.3f")));
+            conditions.push(format!(
+                "occurred_at <= '{}'",
+                end.format("%Y-%m-%d %H:%M:%S%.3f")
+            ));
         }
 
         let where_clause = conditions.join(" AND ");
@@ -158,10 +173,11 @@ impl CkAnalyticsDao {
             .await?;
 
         let text = response.text().await?;
-        let json: serde_json::Value = serde_json::from_str(&text)
-            .unwrap_or_else(|_| serde_json::json!({ "data": [[0]] }));
+        let json: serde_json::Value =
+            serde_json::from_str(&text).unwrap_or_else(|_| serde_json::json!({ "data": [[0]] }));
 
-        let count = json.get("data")
+        let count = json
+            .get("data")
             .and_then(|d| d.get(0))
             .and_then(|d| d.get(0))
             .and_then(|d| d.as_i64())
@@ -233,10 +249,18 @@ impl CkFunnelDao {
             UNION ALL
             SELECT 'converted' as step, converted.cnt as count, if(clicked.cnt > 0, 1.0 - converted.cnt / clicked.cnt, 0.0) as dropoff_rate
             "#,
-            tenant_id, start_time.format("%Y-%m-%d %H:%M:%S%.3f"), end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
-            tenant_id, start_time.format("%Y-%m-%d %H:%M:%S%.3f"), end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
-            tenant_id, start_time.format("%Y-%m-%d %H:%M:%S%.3f"), end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
-            tenant_id, start_time.format("%Y-%m-%d %H:%M:%S%.3f"), end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            tenant_id,
+            start_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            tenant_id,
+            start_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            tenant_id,
+            start_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            tenant_id,
+            start_time.format("%Y-%m-%d %H:%M:%S%.3f"),
+            end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
         );
 
         let response = client
@@ -246,8 +270,8 @@ impl CkFunnelDao {
             .await?;
 
         let text = response.text().await?;
-        let json: serde_json::Value = serde_json::from_str(&text)
-            .unwrap_or_else(|_| serde_json::json!({ "data": [] }));
+        let json: serde_json::Value =
+            serde_json::from_str(&text).unwrap_or_else(|_| serde_json::json!({ "data": [] }));
 
         Ok(json)
     }

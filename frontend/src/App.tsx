@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { Layout } from '@/components/ui/layout'
@@ -18,6 +19,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hydrateFromProfile = useAuthStore((s) => s.hydrateFromProfile)
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void hydrateFromProfile()
+    }
+  }, [hydrateFromProfile, isAuthenticated])
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

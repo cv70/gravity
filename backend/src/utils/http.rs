@@ -19,7 +19,11 @@ impl<T: serde::Serialize> IntoResponse for ApiResponse<T> {
             "data": self.data,
         }));
 
-        (StatusCode::from_u16(self.code).unwrap_or(StatusCode::OK), body).into_response()
+        (
+            StatusCode::from_u16(self.code).unwrap_or(StatusCode::OK),
+            body,
+        )
+            .into_response()
     }
 }
 
@@ -77,7 +81,10 @@ pub struct ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (StatusCode::from_u16(self.code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR), Json(self))
+        (
+            StatusCode::from_u16(self.code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(self),
+        )
             .into_response()
     }
 }

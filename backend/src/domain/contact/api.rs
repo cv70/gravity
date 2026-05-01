@@ -1,4 +1,7 @@
-use axum::{extract::{Extension, Path, Query, State}, Json};
+use axum::{
+    extract::{Extension, Path, Query, State},
+    Json,
+};
 use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -7,8 +10,8 @@ use crate::domain::contact::domain::ContactRepository;
 use crate::domain::contact::schema::{
     Contact, ContactListResponse, CreateContactRequest, UpdateContactRequest,
 };
-use crate::utils::{ApiError, ApiResponse};
 use crate::state::{AppState, UserContext};
+use crate::utils::{ApiError, ApiResponse};
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {

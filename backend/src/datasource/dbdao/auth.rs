@@ -35,4 +35,15 @@ impl DBDao {
 
         Ok(row)
     }
+
+    pub async fn get_organization_by_id(&self, id: Uuid) -> Result<Option<OrganizationRow>> {
+        let row = sqlx::query_as::<_, OrganizationRow>(
+            "SELECT id, name, plan, settings, created_at, updated_at FROM organizations WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_optional(&self.db)
+        .await?;
+
+        Ok(row)
+    }
 }

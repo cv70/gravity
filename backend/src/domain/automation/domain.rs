@@ -11,9 +11,10 @@ use crate::datasource::dbdao::DBDao;
 use crate::domain::channel::executor::ChannelExecutionService;
 
 use super::schema::{
-    AutomationActionResponse, AutomationDashboardResponse, AutomationJobResponse,
-    AutomationKpiResponse, AutomationRunResponse, ApprovalRequestResponse, CreateAutomationJobRequest,
-    CreatePolicyRuleRequest, ExperimentResponse, PolicyRuleResponse, ReviewApprovalRequest,
+    ApprovalRequestResponse, AutomationActionResponse, AutomationDashboardResponse,
+    AutomationJobResponse, AutomationKpiResponse, AutomationRunResponse,
+    CreateAutomationJobRequest, CreatePolicyRuleRequest, ExperimentResponse, PolicyRuleResponse,
+    ReviewApprovalRequest,
 };
 
 struct DefaultJobTemplate {
@@ -67,7 +68,11 @@ impl AutomationRepository {
                         tenant_id,
                         template.goal,
                         json!(template.target_audience),
-                        template.channel_preferences.iter().map(|s| s.to_string()).collect(),
+                        template
+                            .channel_preferences
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect(),
                         json!(template.strategy),
                         template.status,
                         template.risk_level,
@@ -218,7 +223,11 @@ impl AutomationRepository {
     ) -> Result<AutomationJobResponse> {
         let risk_level = self.assess_risk(req);
         let approval_required = req.approval_required.unwrap_or(risk_level == "high");
-        let status = if approval_required { "waiting_approval" } else { "draft" };
+        let status = if approval_required {
+            "waiting_approval"
+        } else {
+            "draft"
+        };
         let currency = req.currency.clone().unwrap_or_else(|| "CNY".to_string());
         let next_action_at = Some(Utc::now() + Duration::hours(2));
         let strategy = self.build_strategy(req, &risk_level, approval_required);
@@ -286,7 +295,10 @@ impl AutomationRepository {
             .list_automation_actions(tenant_id, limit, offset)
             .await?;
 
-        Ok((rows.into_iter().map(Self::action_to_response).collect(), total))
+        Ok((
+            rows.into_iter().map(Self::action_to_response).collect(),
+            total,
+        ))
     }
 
     pub async fn list_approvals(
@@ -301,7 +313,10 @@ impl AutomationRepository {
             .list_approval_requests(tenant_id, limit, offset)
             .await?;
 
-        Ok((rows.into_iter().map(Self::approval_to_response).collect(), total))
+        Ok((
+            rows.into_iter().map(Self::approval_to_response).collect(),
+            total,
+        ))
     }
 
     pub async fn list_policies(
@@ -316,7 +331,10 @@ impl AutomationRepository {
             .list_policy_rules(tenant_id, limit, offset)
             .await?;
 
-        Ok((rows.into_iter().map(Self::policy_to_response).collect(), total))
+        Ok((
+            rows.into_iter().map(Self::policy_to_response).collect(),
+            total,
+        ))
     }
 
     pub async fn list_experiments(
@@ -331,7 +349,10 @@ impl AutomationRepository {
             .list_experiments(tenant_id, limit, offset)
             .await?;
 
-        Ok((rows.into_iter().map(Self::experiment_to_response).collect(), total))
+        Ok((
+            rows.into_iter().map(Self::experiment_to_response).collect(),
+            total,
+        ))
     }
 
     pub async fn execute_job(
@@ -339,7 +360,11 @@ impl AutomationRepository {
         tenant_id: Uuid,
         job_id: Uuid,
         note: Option<String>,
-    ) -> Result<(AutomationRunResponse, Option<ApprovalRequestResponse>, Option<AutomationActionResponse>)> {
+    ) -> Result<(
+        AutomationRunResponse,
+        Option<ApprovalRequestResponse>,
+        Option<AutomationActionResponse>,
+    )> {
         let job = self
             .db_dao
             .get_automation_job_by_id(tenant_id, job_id)
@@ -365,8 +390,16 @@ impl AutomationRepository {
                 run_id,
                 tenant_id,
                 job_id,
-                if job.approval_required { "waiting_approval" } else { "running" },
-                if job.approval_required { "escalate" } else { "evaluate" },
+                if job.approval_required {
+                    "waiting_approval"
+                } else {
+                    "running"
+                },
+                if job.approval_required {
+                    "escalate"
+                } else {
+                    "evaluate"
+                },
                 json!({
                     "job": job.clone(),
                     "note": note,
@@ -384,14 +417,11 @@ impl AutomationRepository {
         let mut completed_at: Option<chrono::DateTime<Utc>> = None;
 
         let (approval_response, action_response) = if job.approval_required {
-            let action_type = self.action_type_for_channel(channels.first().map(String::as_str).unwrap_or("email"));
-            let campaign_id = self.launch_campaign_for_job(
-                tenant_id,
-                &goal,
-                &channels,
-                &action_type,
-            )
-            .await?;
+            let action_type = self
+                .action_type_for_channel(channels.first().map(String::as_str).unwrap_or("email"));
+            let campaign_id = self
+                .launch_campaign_for_job(tenant_id, &goal, &channels, &action_type)
+                .await?;
             let action_row = self
                 .db_dao
                 .create_automation_action(
@@ -430,14 +460,11 @@ impl AutomationRepository {
                 Some(Self::action_to_response(action_row)),
             )
         } else {
-            let action_type = self.action_type_for_channel(channels.first().map(String::as_str).unwrap_or("email"));
-            let campaign_id = self.launch_campaign_for_job(
-                tenant_id,
-                &goal,
-                &channels,
-                &action_type,
-            )
-            .await?;
+            let action_type = self
+                .action_type_for_channel(channels.first().map(String::as_str).unwrap_or("email"));
+            let campaign_id = self
+                .launch_campaign_for_job(tenant_id, &goal, &channels, &action_type)
+                .await?;
             let payload = json!({
                 "goal": goal.clone(),
                 "channels": channels.clone(),
@@ -479,10 +506,7 @@ impl AutomationRepository {
             }
             completed_at = Some(Utc::now());
 
-            (
-                None,
-                Some(Self::action_to_response(executed_action)),
-            )
+            (None, Some(Self::action_to_response(executed_action)))
         };
 
         let _ = self
@@ -491,7 +515,11 @@ impl AutomationRepository {
                 tenant_id,
                 run_row.id,
                 run_status,
-                Some(if job.approval_required { "escalate" } else { "evaluate" }),
+                Some(if job.approval_required {
+                    "escalate"
+                } else {
+                    "evaluate"
+                }),
                 Some(output_context),
                 last_error.as_deref(),
                 completed_at,
@@ -503,12 +531,20 @@ impl AutomationRepository {
             .update_automation_job_status(
                 tenant_id,
                 job_id,
-                if job.approval_required { "waiting_approval" } else { "active" },
+                if job.approval_required {
+                    "waiting_approval"
+                } else {
+                    "active"
+                },
                 Some(now + Duration::hours(4)),
             )
             .await?;
 
-        Ok((Self::run_to_response(run_row), approval_response, action_response))
+        Ok((
+            Self::run_to_response(run_row),
+            approval_response,
+            action_response,
+        ))
     }
 
     pub async fn review_approval(
@@ -598,13 +634,21 @@ impl AutomationRepository {
                 if updated_action.status != "failed" {
                     let _ = self
                         .db_dao
-                        .update_automation_job_status(tenant_id, run.job_id, "active", Some(Utc::now() + Duration::hours(4)))
+                        .update_automation_job_status(
+                            tenant_id,
+                            run.job_id,
+                            "active",
+                            Some(Utc::now() + Duration::hours(4)),
+                        )
                         .await?;
                 }
             }
         }
 
-        Ok((Self::approval_to_response(approval), Some(Self::action_to_response(updated_action))))
+        Ok((
+            Self::approval_to_response(approval),
+            Some(Self::action_to_response(updated_action)),
+        ))
     }
 
     pub async fn create_policy_rule(
@@ -628,7 +672,11 @@ impl AutomationRepository {
         Ok(Self::policy_to_response(row))
     }
 
-    pub async fn dashboard(&self, tenant_id: Uuid, limit: i64) -> Result<AutomationDashboardResponse> {
+    pub async fn dashboard(
+        &self,
+        tenant_id: Uuid,
+        limit: i64,
+    ) -> Result<AutomationDashboardResponse> {
         let (jobs, total_jobs) = self.list_jobs(tenant_id, 1, limit).await?;
         let (runs, _runs_total) = self.list_runs(tenant_id, 1, limit).await?;
         let (actions, actions_total) = self.list_actions(tenant_id, 1, limit).await?;
@@ -638,12 +686,18 @@ impl AutomationRepository {
 
         let active_jobs = jobs.iter().filter(|job| job.status == "active").count() as i64;
         let runs_in_progress = runs.iter().filter(|run| run.status == "running").count() as i64;
-        let pending_approvals = approvals.iter().filter(|approval| approval.status == "pending").count() as i64;
+        let pending_approvals = approvals
+            .iter()
+            .filter(|approval| approval.status == "pending")
+            .count() as i64;
         let blocked_actions = actions
             .iter()
             .filter(|action| action.status == "pending_approval" || action.status == "rejected")
             .count() as i64;
-        let experiments_running = experiments.iter().filter(|exp| exp.status == "running").count() as i64;
+        let experiments_running = experiments
+            .iter()
+            .filter(|exp| exp.status == "running")
+            .count() as i64;
 
         let automation_coverage = if total_jobs > 0 {
             active_jobs as f64 / total_jobs as f64
@@ -738,10 +792,16 @@ impl AutomationRepository {
     ) -> Vec<String> {
         let mut items = vec![];
         if pending_approvals > 0 {
-            items.push(format!("有 {} 个高风险动作等待审批，建议优先处理。", pending_approvals));
+            items.push(format!(
+                "有 {} 个高风险动作等待审批，建议优先处理。",
+                pending_approvals
+            ));
         }
         if blocked_actions > 0 {
-            items.push(format!("已有 {} 个动作被风控拦截，可检查频控和预算阈值。", blocked_actions));
+            items.push(format!(
+                "已有 {} 个动作被风控拦截，可检查频控和预算阈值。",
+                blocked_actions
+            ));
         }
         if active_jobs == 0 {
             items.push("当前没有活跃自动化任务，可从欢迎流或再激活流开始。".to_string());

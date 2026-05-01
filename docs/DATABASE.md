@@ -276,7 +276,7 @@ ORDER BY (tenant_id, campaign_id, date);
 
 ```sql
 CREATE INDEX idx_contacts_tenant_email ON contacts(tenant_id, email);
-CREATE INDEX idx_contacts_tenant_tags ON contacts USING GIN(tenant_id, tags);
+CREATE INDEX idx_contacts_tags_gin ON contacts USING GIN (tags);
 CREATE INDEX idx_events_tenant_occurred ON events(tenant_id, occurred_at DESC);
 CREATE INDEX idx_events_contact ON events(contact_id, occurred_at DESC);
 CREATE INDEX idx_campaigns_tenant_status ON campaigns(tenant_id, status);
@@ -290,3 +290,4 @@ CREATE INDEX idx_workflow_exec_tenant_status ON workflow_executions(tenant_id, s
 - 所有关键动作都要留下审计痕迹
 - 转化、审批和实验结果要能和用户行为关联
 - 数据模型尽量为多渠道和多业务场景保留扩展空间
+- 事件表优先追加写入，避免把分析负载打到事务表上

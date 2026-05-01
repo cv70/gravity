@@ -1,26 +1,50 @@
-import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CheckCircle2, PencilLine, Plus, Search, Tag, Users, X } from 'lucide-react'
+
 import { contactsService } from '@/services/contacts'
-import type { Contact } from '@/types'
-import { Plus, Search, Tag } from 'lucide-react'
+import type { Contact, ContactCreatePayload } from '@/types'
+
+type ContactFormState = {
+  email: string
+  name: string
+  phone: string
+  tags: string
+  subscribed: boolean
+}
+
+const emptyForm: ContactFormState = {
+  email: '',
+  name: '',
+  phone: '',
+  tags: '',
+  subscribed: true,
+}
 
 export function ContactsPage() {
+  const queryClient = useQueryClient()
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [showModal, setShowModal] = useState(false)
-  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState<Contact | null>(null)
+  const [form, setForm] = useState<ContactFormState>(emptyForm)
 
-  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  // Reset page when search changes
   useEffect(() => {
     setPage(1)
   }, [debouncedSearch])
+
+  useEffect(() => {
+    if (!showModal) {
+      setEditing(null)
+      setForm(emptyForm)
+    }
+  }, [showModal])
 
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', page, debouncedSearch],
@@ -28,31 +52,80 @@ export function ContactsPage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: contactsService.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+    mutationFn: (payload: ContactCreatePayload) => contactsService.create(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      setShowModal(false)
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: ContactCreatePayload }) => contactsService.update(id, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['contacts'] })
       setShowModal(false)
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: contactsService.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['contacts'] })
+    },
   })
 
-  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const form = e.currentTarget
-    const formData = new FormData(form)
-    await createMutation.mutateAsync({
-      email: formData.get('email') as string,
-      name: formData.get('name') as string,
-      phone: formData.get('phone') as string || undefined,
-      tags: [],
-      attributes: {},
-      subscribed: true,
+  const stats = useMemo(() => {
+    const items = data?.data ?? []
+    const subscribed = items.filter((item) => item.subscribed).length
+    const tagged = items.filter((item) => item.tags.length > 0).length
+    const withPhone = items.filter((item) => Boolean(item.phone)).length
+    return [
+      { label: '总联系人', value: data?.total ?? 0, hint: '统一的线索和联系人池', icon: Users },
+      { label: '已订阅', value: subscribed, hint: '允许自动触达的人群', icon: CheckCircle2 },
+      { label: '有标签', value: tagged, hint: '可以直接进入分群', icon: Tag },
+      { label: '有电话', value: withPhone, hint: '适合销售跟进', icon: PencilLine },
+    ]
+  }, [data])
+
+  const contacts = data?.data ?? []
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm(emptyForm)
+    setShowModal(true)
+  }
+
+  const openEdit = (contact: Contact) => {
+    setEditing(contact)
+    setForm({
+      email: contact.email,
+      name: contact.name,
+      phone: contact.phone || '',
+      tags: contact.tags.join(', '),
+      subscribed: contact.subscribed,
     })
-    form.reset()
+    setShowModal(true)
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const payload: ContactCreatePayload = {
+      email: form.email,
+      name: form.name,
+      phone: form.phone || undefined,
+      subscribed: form.subscribed,
+      tags: form.tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      attributes: {},
+    }
+
+    if (editing) {
+      await updateMutation.mutateAsync({ id: editing.id, payload })
+    } else {
+      await createMutation.mutateAsync(payload)
+    }
   }
 
   const handleDelete = async (contact: Contact) => {
@@ -63,78 +136,138 @@ export function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">联系人</h1>
-          <p className="text-gray-500 mt-1">共 {data?.total ?? 0} 个联系人</p>
+      <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-xl border border-slate-800">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.22),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_28%)]" />
+        <div className="relative flex flex-col gap-5 p-6 lg:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-cyan-100">
+                <Users className="h-4 w-4" />
+                客户与线索中心
+              </div>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight">联系人、线索、标签和订阅状态统一管理</h1>
+              <p className="mt-3 max-w-3xl text-sm lg:text-base text-slate-300">
+                支持搜索、编辑、打标和订阅管理，让后续自动化分群和触达有可靠输入。
+              </p>
+            </div>
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300"
+            >
+              <Plus className="h-4 w-4" />
+              添加联系人
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-3xl font-bold">{stat.value}</p>
+                    <p className="mt-1 text-sm text-slate-300">{stat.label}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-2 text-cyan-200">
+                    <stat.icon className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-slate-400">{stat.hint}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700"
-        >
-          <Plus className="h-4 w-4" />
-          添加联系人
-        </button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="搜索联系人..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-        />
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="搜索姓名、邮箱或电话"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['contacts'] })}
+              className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              刷新列表
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-500">加载中...</div>
-        ) : data?.data.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">暂无联系人</div>
+          <div className="p-10 text-center text-slate-500">加载中...</div>
+        ) : contacts.length === 0 ? (
+          <div className="p-10 text-center text-slate-500">暂无联系人，先添加第一个线索。</div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">邮箱</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">电话</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">标签</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+            <thead className="bg-slate-50">
+              <tr className="border-b border-slate-200">
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">姓名</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">电话</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">标签</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">订阅</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {data?.data.map((contact) => (
-                <tr key={contact.id} className="hover:bg-gray-50">
+            <tbody className="divide-y divide-slate-200">
+              {contacts.map((contact) => (
+                <tr key={contact.id} className="hover:bg-slate-50/80">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-brand-700">{contact.name?.charAt(0).toUpperCase() || '?'}</span>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 font-semibold text-brand-700">
+                        {contact.name?.charAt(0).toUpperCase() || '?'}
                       </div>
-                      <span className="font-medium text-gray-900">{contact.name}</span>
+                      <div>
+                        <p className="font-semibold text-slate-900">{contact.name}</p>
+                        <p className="text-xs text-slate-400">ID: {contact.id.slice(0, 8)}</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-500">{contact.email}</td>
-                  <td className="px-6 py-4 text-gray-500">{contact.phone || '-'}</td>
+                  <td className="px-6 py-4 text-slate-600">{contact.email}</td>
+                  <td className="px-6 py-4 text-slate-600">{contact.phone || '-'}</td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {(contact.tags || []).map((tag: string) => (
-                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                    <div className="flex flex-wrap gap-1.5">
+                      {contact.tags.length ? contact.tags.map((tag) => (
+                        <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
                           <Tag className="h-3 w-3" />
                           {tag}
                         </span>
-                      ))}
+                      )) : <span className="text-sm text-slate-400">未打标</span>}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleDelete(contact)}
-                      disabled={deleteMutation.isPending}
-                      className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
-                    >
-                      {deleteMutation.isPending ? '删除中...' : '删除'}
-                    </button>
+                  <td className="px-6 py-4">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                      contact.subscribed ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {contact.subscribed ? '已订阅' : '已退订'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => openEdit(contact)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <PencilLine className="h-4 w-4" />
+                        编辑
+                      </button>
+                      <button
+                        onClick={() => handleDelete(contact)}
+                        disabled={deleteMutation.isPending}
+                        className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        删除
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -144,19 +277,19 @@ export function ContactsPage() {
       </div>
 
       {data && data.total > 20 && (
-        <div className="flex justify-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 disabled:opacity-50"
           >
             上一页
           </button>
-          <span className="px-4 py-2">第 {page} 页</span>
+          <span className="px-3 py-2 text-sm text-slate-500">第 {page} 页</span>
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={data.data.length < 20}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 disabled:opacity-50"
           >
             下一页
           </button>
@@ -164,26 +297,80 @@ export function ContactsPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">添加联系人</h3>
-            <form onSubmit={handleCreate} className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b px-6 py-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">邮箱 *</label>
-                <input name="email" type="email" required className="w-full px-3 py-2 border rounded-lg" />
+                <h3 className="text-lg font-semibold text-slate-900">{editing ? '编辑联系人' : '添加联系人'}</h3>
+                <p className="text-sm text-slate-500">联系人会用于分群、评分、触达和销售协同。</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">邮箱</label>
+                  <input
+                    value={form.email}
+                    onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                    type="email"
+                    required
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">姓名</label>
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">电话</label>
+                  <input
+                    value={form.phone}
+                    onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">订阅状态</label>
+                  <select
+                    value={form.subscribed ? 'yes' : 'no'}
+                    onChange={(e) => setForm((prev) => ({ ...prev, subscribed: e.target.value === 'yes' }))}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                  >
+                    <option value="yes">已订阅</option>
+                    <option value="no">已退订</option>
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">姓名 *</label>
-                <input name="name" required className="w-full px-3 py-2 border rounded-lg" />
+                <label className="mb-1 block text-sm font-medium text-slate-700">标签（逗号分隔）</label>
+                <input
+                  value={form.tags}
+                  onChange={(e) => setForm((prev) => ({ ...prev, tags: e.target.value }))}
+                  placeholder="高意向, 广告来源, 7天未跟进"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">电话</label>
-                <input name="phone" className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg">取消</button>
-                <button type="submit" disabled={createMutation.isPending} className="px-4 py-2 bg-brand-600 text-white rounded-lg disabled:opacity-50">
-                  {createMutation.isPending ? '创建中...' : '创建'}
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {editing ? '保存更改' : createMutation.isPending ? '创建中...' : '创建联系人'}
                 </button>
               </div>
             </form>

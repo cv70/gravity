@@ -63,7 +63,10 @@ pub async fn list_jobs(
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
-    Ok(ApiResponse::success(AutomationJobListResponse { data, total }))
+    Ok(ApiResponse::success(AutomationJobListResponse {
+        data,
+        total,
+    }))
 }
 
 pub async fn create_job(
@@ -94,7 +97,11 @@ pub async fn execute_job(
         .await
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
-    Ok(ApiResponse::success(ExecuteAutomationJobResponse { run, approval, action }))
+    Ok(ApiResponse::success(ExecuteAutomationJobResponse {
+        run,
+        approval,
+        action,
+    }))
 }
 
 pub async fn list_runs(
@@ -109,7 +116,10 @@ pub async fn list_runs(
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
-    Ok(ApiResponse::success(AutomationRunListResponse { data, total }))
+    Ok(ApiResponse::success(AutomationRunListResponse {
+        data,
+        total,
+    }))
 }
 
 pub async fn list_actions(
@@ -124,7 +134,10 @@ pub async fn list_actions(
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
-    Ok(ApiResponse::success(AutomationActionListResponse { data, total }))
+    Ok(ApiResponse::success(AutomationActionListResponse {
+        data,
+        total,
+    }))
 }
 
 pub async fn list_approvals(
@@ -139,7 +152,10 @@ pub async fn list_approvals(
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
-    Ok(ApiResponse::success(ApprovalRequestListResponse { data, total }))
+    Ok(ApiResponse::success(ApprovalRequestListResponse {
+        data,
+        total,
+    }))
 }
 
 pub async fn review_approval(

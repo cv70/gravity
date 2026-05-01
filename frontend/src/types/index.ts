@@ -4,6 +4,23 @@ export interface ApiResponse<T> {
   data: T
 }
 
+export interface Organization {
+  id: string
+  name: string
+  plan: string
+  settings: Record<string, unknown>
+}
+
+export interface MeResponse {
+  user: {
+    id: string
+    email: string
+    name: string
+    role: string
+  }
+  organization: Organization
+}
+
 export interface Contact {
   id: string
   tenant_id: string
@@ -16,6 +33,17 @@ export interface Contact {
   created_at: string
   updated_at: string
 }
+
+export interface ContactCreatePayload {
+  email: string
+  name: string
+  phone?: string
+  tags?: string[]
+  attributes?: Record<string, unknown>
+  subscribed?: boolean
+}
+
+export interface ContactUpdatePayload extends Partial<ContactCreatePayload> {}
 
 export interface Campaign {
   id: string
@@ -36,6 +64,18 @@ export interface Campaign {
   updated_at: string
 }
 
+export interface CampaignCreatePayload {
+  name: string
+  campaign_type: 'social' | 'email' | 'content' | 'ads'
+  description?: string
+  start_date?: string | null
+  end_date?: string | null
+}
+
+export interface CampaignUpdatePayload extends Partial<CampaignCreatePayload> {
+  status?: 'draft' | 'active' | 'paused' | 'completed'
+}
+
 export interface Content {
   id: string
   tenant_id: string
@@ -46,6 +86,13 @@ export interface Content {
   status: string
   created_at: string
   updated_at: string
+}
+
+export interface CreateContentPayload {
+  name: string
+  content_type: string
+  content: Record<string, unknown>
+  campaign_id?: string | null
 }
 
 export interface ChannelAccount {
@@ -59,6 +106,21 @@ export interface ChannelAccount {
   last_sync_at?: string | null
   created_at: string
   updated_at: string
+}
+
+export interface ChannelCreatePayload {
+  platform: string
+  name: string
+  credentials_encrypted: string
+  settings: Record<string, unknown>
+  status?: string
+}
+
+export interface ChannelUpdatePayload {
+  name?: string
+  status?: string
+  settings?: Record<string, unknown>
+  last_sync_at?: string
 }
 
 export interface AnalyticsDashboard {

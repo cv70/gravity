@@ -1,11 +1,14 @@
-use axum::{extract::{Extension, Path, Query, State}, Json};
+use axum::{
+    extract::{Extension, Path, Query, State},
+    Json,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::content::domain::ContentRepository;
 use crate::domain::content::schema::{Content, ContentListResponse, CreateContentRequest};
-use crate::utils::{ApiError, ApiResponse};
 use crate::state::{AppState, UserContext};
+use crate::utils::{ApiError, ApiResponse};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ListQuery {

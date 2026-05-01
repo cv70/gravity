@@ -5,16 +5,16 @@ mod infra;
 mod state;
 mod utils;
 
-use std::sync::Arc;
 use axum::{
-    Router,
-    routing::{get, post, patch, delete},
     middleware,
+    routing::{delete, get, patch, post},
+    Router,
 };
+use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use state::{AppState, auth_middleware};
+use state::{auth_middleware, AppState};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,7 +29,11 @@ async fn main() -> anyhow::Result<()> {
     let app_state = AppState::new(config.clone()).await?;
     domain::automation::worker::AutomationWorker::new(app_state.registry.db_dao.clone()).start();
 
-    tracing::info!("Starting server on {}:{}", config.server.host, config.server.port);
+    tracing::info!(
+        "Starting server on {}:{}",
+        config.server.host,
+        config.server.port
+    );
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -38,35 +42,109 @@ async fn main() -> anyhow::Result<()> {
 
     // Public routes - no auth required
     let public_routes = Router::new()
-        .route("/health", get(|| async { "OK" }))
+        .route(
+            "/health",
+            get(|| async { axum::Json(serde_json::json!({"status":"ok"})) }),
+        )
         .route("/api/v1/auth/register", post(domain::auth::register))
         .route("/api/v1/auth/login", post(domain::auth::login))
         .route("/api/v1/auth/refresh", post(domain::auth::refresh));
 
     // Protected routes - require auth via middleware
     let protected_routes = Router::new()
-        .route("/api/v1/contacts", get(domain::contact::list_contacts).post(domain::contact::create_contact))
-        .route("/api/v1/contacts/{id}", get(domain::contact::get_contact).patch(domain::contact::update_contact).delete(domain::contact::delete_contact))
-        .route("/api/v1/campaigns", get(domain::campaign::list_campaigns).post(domain::campaign::create_campaign))
-        .route("/api/v1/campaigns/{id}", get(domain::campaign::get_campaign).patch(domain::campaign::update_campaign).delete(domain::campaign::delete_campaign))
-        .route("/api/v1/campaigns/{id}/launch", post(domain::campaign::launch_campaign))
-        .route("/api/v1/campaigns/{id}/pause", post(domain::campaign::pause_campaign))
-        .route("/api/v1/channels", get(domain::channel::list_channels).post(domain::channel::create_channel))
-        .route("/api/v1/channels/{id}", patch(domain::channel::update_channel).delete(domain::channel::delete_channel))
-        .route("/api/v1/contents", get(domain::content::list_contents).post(domain::content::create_content))
-        .route("/api/v1/contents/{id}", get(domain::content::get_content).delete(domain::content::delete_content))
-        .route("/api/v1/automation/dashboard", get(domain::automation::get_dashboard))
-        .route("/api/v1/automation/jobs", get(domain::automation::list_jobs).post(domain::automation::create_job))
-        .route("/api/v1/automation/jobs/{id}/execute", post(domain::automation::execute_job))
-        .route("/api/v1/automation/runs", get(domain::automation::list_runs))
-        .route("/api/v1/automation/actions", get(domain::automation::list_actions))
-        .route("/api/v1/automation/approvals", get(domain::automation::list_approvals))
-        .route("/api/v1/automation/approvals/{id}/decision", post(domain::automation::review_approval))
-        .route("/api/v1/automation/policies", get(domain::automation::list_policies).post(domain::automation::create_policy))
-        .route("/api/v1/automation/bootstrap", post(domain::automation::bootstrap_defaults))
-        .route("/api/v1/automation/experiments", get(domain::automation::list_experiments))
-        .route("/api/v1/analytics/dashboard", get(domain::analytics::get_dashboard))
-        .route("/api/v1/analytics/funnel", get(domain::analytics::get_funnel))
+        .route(
+            "/api/v1/contacts",
+            get(domain::contact::list_contacts).post(domain::contact::create_contact),
+        )
+        .route(
+            "/api/v1/contacts/{id}",
+            get(domain::contact::get_contact)
+                .patch(domain::contact::update_contact)
+                .delete(domain::contact::delete_contact),
+        )
+        .route(
+            "/api/v1/campaigns",
+            get(domain::campaign::list_campaigns).post(domain::campaign::create_campaign),
+        )
+        .route(
+            "/api/v1/campaigns/{id}",
+            get(domain::campaign::get_campaign)
+                .patch(domain::campaign::update_campaign)
+                .delete(domain::campaign::delete_campaign),
+        )
+        .route(
+            "/api/v1/campaigns/{id}/launch",
+            post(domain::campaign::launch_campaign),
+        )
+        .route(
+            "/api/v1/campaigns/{id}/pause",
+            post(domain::campaign::pause_campaign),
+        )
+        .route(
+            "/api/v1/channels",
+            get(domain::channel::list_channels).post(domain::channel::create_channel),
+        )
+        .route(
+            "/api/v1/channels/{id}",
+            patch(domain::channel::update_channel).delete(domain::channel::delete_channel),
+        )
+        .route(
+            "/api/v1/contents",
+            get(domain::content::list_contents).post(domain::content::create_content),
+        )
+        .route(
+            "/api/v1/contents/{id}",
+            get(domain::content::get_content).delete(domain::content::delete_content),
+        )
+        .route(
+            "/api/v1/automation/dashboard",
+            get(domain::automation::get_dashboard),
+        )
+        .route(
+            "/api/v1/automation/jobs",
+            get(domain::automation::list_jobs).post(domain::automation::create_job),
+        )
+        .route(
+            "/api/v1/automation/jobs/{id}/execute",
+            post(domain::automation::execute_job),
+        )
+        .route(
+            "/api/v1/automation/runs",
+            get(domain::automation::list_runs),
+        )
+        .route(
+            "/api/v1/automation/actions",
+            get(domain::automation::list_actions),
+        )
+        .route(
+            "/api/v1/automation/approvals",
+            get(domain::automation::list_approvals),
+        )
+        .route(
+            "/api/v1/automation/approvals/{id}/decision",
+            post(domain::automation::review_approval),
+        )
+        .route(
+            "/api/v1/automation/policies",
+            get(domain::automation::list_policies).post(domain::automation::create_policy),
+        )
+        .route(
+            "/api/v1/automation/bootstrap",
+            post(domain::automation::bootstrap_defaults),
+        )
+        .route(
+            "/api/v1/automation/experiments",
+            get(domain::automation::list_experiments),
+        )
+        .route(
+            "/api/v1/analytics/dashboard",
+            get(domain::analytics::get_dashboard),
+        )
+        .route(
+            "/api/v1/analytics/funnel",
+            get(domain::analytics::get_funnel),
+        )
+        .route("/api/v1/auth/me", get(domain::auth::me))
         .layer(middleware::from_fn_with_state(
             app_state.auth_service.clone(),
             auth_middleware,
@@ -77,7 +155,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/track/event", post(domain::analytics::track_event))
         .route("/api/v1/track/identify", post(domain::analytics::identify))
         .route("/api/v1/track/page", post(domain::analytics::track_page))
-        .route("/api/v1/track/conversion", post(domain::analytics::track_conversion));
+        .route(
+            "/api/v1/track/conversion",
+            post(domain::analytics::track_conversion),
+        );
 
     let app = public_routes
         .merge(protected_routes)
@@ -85,7 +166,9 @@ async fn main() -> anyhow::Result<()> {
         .layer(cors)
         .with_state(Arc::new(app_state));
 
-    let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.server.host, config.server.port)).await?;
+    let listener =
+        tokio::net::TcpListener::bind(format!("{}:{}", config.server.host, config.server.port))
+            .await?;
     axum::serve(listener, app).await?;
 
     Ok(())

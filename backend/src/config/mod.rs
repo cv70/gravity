@@ -92,15 +92,17 @@ impl AppConfig {
             && app_config.server.jwt_private_key.ends_with(".pem")
         {
             app_config.server.jwt_private_key =
-                fs::read_to_string(&app_config.server.jwt_private_key)
-                    .map_err(|e| ConfigError::Message(format!("Failed to read JWT private key: {}", e)))?;
+                fs::read_to_string(&app_config.server.jwt_private_key).map_err(|e| {
+                    ConfigError::Message(format!("Failed to read JWT private key: {}", e))
+                })?;
         }
         if !app_config.server.jwt_public_key.is_empty()
             && app_config.server.jwt_public_key.ends_with(".pem")
         {
             app_config.server.jwt_public_key =
-                fs::read_to_string(&app_config.server.jwt_public_key)
-                    .map_err(|e| ConfigError::Message(format!("Failed to read JWT public key: {}", e)))?;
+                fs::read_to_string(&app_config.server.jwt_public_key).map_err(|e| {
+                    ConfigError::Message(format!("Failed to read JWT public key: {}", e))
+                })?;
         }
 
         // Validate JWT secret in dev mode

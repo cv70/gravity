@@ -2,8 +2,8 @@ use anyhow::Result;
 use uuid::Uuid;
 
 use super::schema::{Campaign, CampaignListResponse, CreateCampaignRequest, UpdateCampaignRequest};
-use crate::datasource::dbdao::DBDao;
 use crate::datasource::dbdao::schema::CampaignRow;
+use crate::datasource::dbdao::DBDao;
 
 pub struct CampaignRepository {
     db_dao: DBDao,
@@ -18,17 +18,20 @@ impl CampaignRepository {
         let id = Uuid::new_v4();
         let campaign = Campaign::new(tenant_id, req.name.clone(), req.campaign_type.clone());
 
-        let row = self.db_dao.create_campaign(
-            id,
-            tenant_id,
-            &campaign.name,
-            &campaign.campaign_type,
-            &campaign.status,
-            req.description.as_deref(),
-            req.start_date,
-            req.end_date,
-            campaign.settings.clone(),
-        ).await?;
+        let row = self
+            .db_dao
+            .create_campaign(
+                id,
+                tenant_id,
+                &campaign.name,
+                &campaign.campaign_type,
+                &campaign.status,
+                req.description.as_deref(),
+                req.start_date,
+                req.end_date,
+                campaign.settings.clone(),
+            )
+            .await?;
 
         Ok(Campaign {
             id: row.id,
@@ -63,7 +66,12 @@ impl CampaignRepository {
         }))
     }
 
-    pub async fn list(&self, tenant_id: Uuid, page: i64, limit: i64) -> Result<(Vec<Campaign>, i64)> {
+    pub async fn list(
+        &self,
+        tenant_id: Uuid,
+        page: i64,
+        limit: i64,
+    ) -> Result<(Vec<Campaign>, i64)> {
         let offset = (page - 1) * limit;
 
         let (rows, total) = self.db_dao.list_campaigns(tenant_id, limit, offset).await?;
@@ -94,15 +102,18 @@ impl CampaignRepository {
         id: Uuid,
         req: &UpdateCampaignRequest,
     ) -> Result<Option<Campaign>> {
-        let row = self.db_dao.update_campaign(
-            tenant_id,
-            id,
-            req.name.as_deref(),
-            req.status.as_ref().map(|s| s.to_string()).as_deref(),
-            req.description.as_deref(),
-            req.start_date,
-            req.end_date,
-        ).await?;
+        let row = self
+            .db_dao
+            .update_campaign(
+                tenant_id,
+                id,
+                req.name.as_deref(),
+                req.status.as_ref().map(|s| s.to_string()).as_deref(),
+                req.description.as_deref(),
+                req.start_date,
+                req.end_date,
+            )
+            .await?;
 
         Ok(row.map(|r| Campaign {
             id: r.id,
@@ -124,7 +135,10 @@ impl CampaignRepository {
     }
 
     pub async fn count_by_status(&self, tenant_id: Uuid) -> Result<(i64,)> {
-        let count = self.db_dao.count_campaigns_by_status(tenant_id, "active").await?;
+        let count = self
+            .db_dao
+            .count_campaigns_by_status(tenant_id, "active")
+            .await?;
         Ok((count,))
     }
 }

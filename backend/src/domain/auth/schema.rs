@@ -79,6 +79,20 @@ pub struct AuthResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrganizationResponse {
+    pub id: Uuid,
+    pub name: String,
+    pub plan: String,
+    pub settings: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MeResponse {
+    pub user: UserResponse,
+    pub organization: OrganizationResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserResponse {
     pub id: Uuid,
     pub email: String,

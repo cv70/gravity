@@ -154,10 +154,7 @@ impl AutomationWorker {
     fn should_activate_job(&self, job: &AutomationJobRow, now: DateTime<Utc>) -> bool {
         job.status == "draft"
             && !job.approval_required
-            && job
-                .next_action_at
-                .map(|next| next <= now)
-                .unwrap_or(true)
+            && job.next_action_at.map(|next| next <= now).unwrap_or(true)
     }
 
     async fn should_spawn_run(&self, job: &AutomationJobRow, now: DateTime<Utc>) -> Result<bool> {
@@ -165,10 +162,7 @@ impl AutomationWorker {
             return Ok(false);
         }
 
-        let due = job
-            .next_action_at
-            .map(|next| next <= now)
-            .unwrap_or(false);
+        let due = job.next_action_at.map(|next| next <= now).unwrap_or(false);
         if !due {
             return Ok(false);
         }
@@ -184,7 +178,11 @@ impl AutomationWorker {
         Ok(!has_running_run)
     }
 
-    async fn activate_and_spawn_run(&self, job: &AutomationJobRow, now: DateTime<Utc>) -> Result<bool> {
+    async fn activate_and_spawn_run(
+        &self,
+        job: &AutomationJobRow,
+        now: DateTime<Utc>,
+    ) -> Result<bool> {
         let next_action_at = Some(now + chrono::Duration::minutes(15));
         let updated = self
             .db_dao
@@ -192,9 +190,13 @@ impl AutomationWorker {
             .await?;
 
         if let Some(active_job) = updated {
-            self.create_run_for_job(&active_job, "identify", json!({
-                "reason": "automation worker auto-start",
-            }))
+            self.create_run_for_job(
+                &active_job,
+                "identify",
+                json!({
+                    "reason": "automation worker auto-start",
+                }),
+            )
             .await?;
             return Ok(true);
         }
@@ -203,14 +205,23 @@ impl AutomationWorker {
     }
 
     async fn spawn_run(&self, job: &AutomationJobRow, _now: DateTime<Utc>) -> Result<bool> {
-        self.create_run_for_job(job, "identify", json!({
-            "reason": "scheduled next automation cycle",
-        }))
+        self.create_run_for_job(
+            job,
+            "identify",
+            json!({
+                "reason": "scheduled next automation cycle",
+            }),
+        )
         .await?;
         Ok(true)
     }
 
-    async fn create_run_for_job(&self, job: &AutomationJobRow, current_step: &str, input_context: Value) -> Result<AutomationRunRow> {
+    async fn create_run_for_job(
+        &self,
+        job: &AutomationJobRow,
+        current_step: &str,
+        input_context: Value,
+    ) -> Result<AutomationRunRow> {
         self.db_dao
             .create_automation_run(
                 Uuid::new_v4(),
@@ -248,10 +259,15 @@ impl AutomationWorker {
             "choose_channel" => (
                 "send",
                 false,
-                Some(self.action_payload("choose_channel", job, run, json!({
-                    "selected_channel": self.selected_channel(job, run),
-                    "content_id": run.output_context.get("generated_content_id").cloned(),
-                }))),
+                Some(self.action_payload(
+                    "choose_channel",
+                    job,
+                    run,
+                    json!({
+                        "selected_channel": self.selected_channel(job, run),
+                        "content_id": run.output_context.get("generated_content_id").cloned(),
+                    }),
+                )),
             ),
             "send" => (
                 "wait",
@@ -262,52 +278,87 @@ impl AutomationWorker {
             "evaluate" => (
                 "optimize",
                 false,
-                Some(self.action_payload("evaluate", job, run, json!({
-                    "opened_rate": 0.42,
-                    "clicked_rate": 0.18,
-                    "converted": true,
-                }))),
+                Some(self.action_payload(
+                    "evaluate",
+                    job,
+                    run,
+                    json!({
+                        "opened_rate": 0.42,
+                        "clicked_rate": 0.18,
+                        "converted": true,
+                    }),
+                )),
             ),
-            "optimize" => ("complete", true, Some(self.action_payload("optimize", job, run, json!({
-                "next_best_action": "repeat_with_winner",
-            })))),
+            "optimize" => (
+                "complete",
+                true,
+                Some(self.action_payload(
+                    "optimize",
+                    job,
+                    run,
+                    json!({
+                        "next_best_action": "repeat_with_winner",
+                    }),
+                )),
+            ),
             "complete" => ("complete", true, None),
             _ => ("evaluate", false, None),
         };
 
-        let mut output_context = self.merge_output_context(&run.output_context, json!({
-            "last_tick_at": now.to_rfc3339(),
-            "last_step": run.current_step,
-        }));
+        let mut output_context = self.merge_output_context(
+            &run.output_context,
+            json!({
+                "last_tick_at": now.to_rfc3339(),
+                "last_step": run.current_step,
+            }),
+        );
 
         let actions_emitted = action.is_some() as i64;
 
         if let Some(action_payload) = action {
-            let action_type = action_payload["action_type"].as_str().unwrap_or("send").to_string();
-            let channel = action_payload["channel"].as_str().unwrap_or("internal").to_string();
+            let action_type = action_payload["action_type"]
+                .as_str()
+                .unwrap_or("send")
+                .to_string();
+            let channel = action_payload["channel"]
+                .as_str()
+                .unwrap_or("internal")
+                .to_string();
             let mut patch = json!({
                 "last_action": action_payload.clone(),
             });
             if let Value::Object(ref mut map) = patch {
-                if let Some(content_id) = action_payload.get("content_id").and_then(|value| value.as_str()) {
+                if let Some(content_id) = action_payload
+                    .get("content_id")
+                    .and_then(|value| value.as_str())
+                {
                     map.insert(
                         "generated_content_id".to_string(),
                         Value::String(content_id.to_string()),
                     );
                 }
-                if let Some(selected_channel) = action_payload.get("selected_channel").and_then(|value| value.as_str()) {
+                if let Some(selected_channel) = action_payload
+                    .get("selected_channel")
+                    .and_then(|value| value.as_str())
+                {
                     map.insert(
                         "selected_channel".to_string(),
                         Value::String(selected_channel.to_string()),
                     );
                 }
-                if let Some(campaign_id) = action_payload.get("campaign_id").and_then(|value| value.as_str()) {
+                if let Some(campaign_id) = action_payload
+                    .get("campaign_id")
+                    .and_then(|value| value.as_str())
+                {
                     map.insert(
                         "campaign_id".to_string(),
                         Value::String(campaign_id.to_string()),
                     );
                 }
-                if let Some(delivery_status) = action_payload.get("delivery").and_then(|value| value.as_str()) {
+                if let Some(delivery_status) = action_payload
+                    .get("delivery")
+                    .and_then(|value| value.as_str())
+                {
                     map.insert(
                         "delivery_status".to_string(),
                         Value::String(delivery_status.to_string()),
@@ -335,13 +386,18 @@ impl AutomationWorker {
                 .await?;
 
             if self.is_external_action(&action_type) {
-                let executed_action = self.execute_channel_action(job.tenant_id, action_row).await?;
-                output_context = self.merge_output_context(&output_context, json!({
-                    "delivery_result": {
-                        "status": executed_action.status,
-                        "failure_reason": executed_action.failure_reason,
-                    }
-                }));
+                let executed_action = self
+                    .execute_channel_action(job.tenant_id, action_row)
+                    .await?;
+                output_context = self.merge_output_context(
+                    &output_context,
+                    json!({
+                        "delivery_result": {
+                            "status": executed_action.status,
+                            "failure_reason": executed_action.failure_reason,
+                        }
+                    }),
+                );
             }
         }
 
@@ -406,15 +462,29 @@ impl AutomationWorker {
         }))
     }
 
-    fn action_payload(&self, action_type: &str, job: &AutomationJobRow, run: &AutomationRunRow, mut extra: Value) -> Value {
+    fn action_payload(
+        &self,
+        action_type: &str,
+        job: &AutomationJobRow,
+        run: &AutomationRunRow,
+        mut extra: Value,
+    ) -> Value {
         if let Value::Object(ref mut map) = extra {
-            map.insert("action_type".to_string(), Value::String(action_type.to_string()));
+            map.insert(
+                "action_type".to_string(),
+                Value::String(action_type.to_string()),
+            );
             map.insert("job_id".to_string(), Value::String(job.id.to_string()));
             map.insert("run_id".to_string(), Value::String(run.id.to_string()));
             if !map.contains_key("channel") {
                 map.insert(
                     "channel".to_string(),
-                    Value::String(job.channel_preferences.first().cloned().unwrap_or_else(|| "internal".to_string())),
+                    Value::String(
+                        job.channel_preferences
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| "internal".to_string()),
+                    ),
                 );
             }
         }
@@ -541,13 +611,19 @@ impl AutomationWorker {
 
         if let Some(content_id) = content_id {
             if let Value::Object(ref mut map) = payload {
-                map.insert("content_id".to_string(), Value::String(content_id.to_string()));
+                map.insert(
+                    "content_id".to_string(),
+                    Value::String(content_id.to_string()),
+                );
             }
         }
 
         if let Some(campaign_id) = campaign_id {
             if let Value::Object(ref mut map) = payload {
-                map.insert("campaign_id".to_string(), Value::String(campaign_id.to_string()));
+                map.insert(
+                    "campaign_id".to_string(),
+                    Value::String(campaign_id.to_string()),
+                );
             }
         }
 
@@ -563,42 +639,45 @@ impl AutomationWorker {
         let outcome = executor.execute_action(tenant_id, &action).await;
 
         let updated = match outcome {
-            Ok(result) if result.success => self
-                .db_dao
-                .update_automation_action_status(
-                    tenant_id,
-                    action.id,
-                    &result.status,
-                    None,
-                    None,
-                    Some(Utc::now()),
-                    None,
-                )
-                .await?,
-            Ok(result) => self
-                .db_dao
-                .update_automation_action_status(
-                    tenant_id,
-                    action.id,
-                    "failed",
-                    None,
-                    None,
-                    None,
-                    result.failure_reason.as_deref(),
-                )
-                .await?,
-            Err(err) => self
-                .db_dao
-                .update_automation_action_status(
-                    tenant_id,
-                    action.id,
-                    "failed",
-                    None,
-                    None,
-                    None,
-                    Some(&err.to_string()),
-                )
-                .await?,
+            Ok(result) if result.success => {
+                self.db_dao
+                    .update_automation_action_status(
+                        tenant_id,
+                        action.id,
+                        &result.status,
+                        None,
+                        None,
+                        Some(Utc::now()),
+                        None,
+                    )
+                    .await?
+            }
+            Ok(result) => {
+                self.db_dao
+                    .update_automation_action_status(
+                        tenant_id,
+                        action.id,
+                        "failed",
+                        None,
+                        None,
+                        None,
+                        result.failure_reason.as_deref(),
+                    )
+                    .await?
+            }
+            Err(err) => {
+                self.db_dao
+                    .update_automation_action_status(
+                        tenant_id,
+                        action.id,
+                        "failed",
+                        None,
+                        None,
+                        None,
+                        Some(&err.to_string()),
+                    )
+                    .await?
+            }
         }
         .ok_or_else(|| anyhow::anyhow!("Automation action not found"))?;
 

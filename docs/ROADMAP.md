@@ -75,4 +75,7 @@ Gravity 负责“运营系统化和自动化”，不替代以下职责：
 
 - `README.md` 用于快速理解项目定位与最终目标
 - `docs/ARCHITECTURE.md` 用于理解系统结构、分层和边界
-- 本文档用于确认最终能力清单与演进原则
+- `docs/WORKFLOW.md` 用于理解编排、执行和恢复机制
+- `docs/CHANNELS.md` 用于理解渠道适配与回执语义
+- `docs/DATABASE.md` 用于理解数据域、隔离和分析存储
+- `docs/API.md` 用于理解对外资源与接口约定

@@ -1,10 +1,14 @@
-use axum::{extract::State, Json};
+use axum::{
+    extract::{Extension, State},
+    Json,
+};
 use std::sync::Arc;
 
-use crate::domain::auth::domain::AuthService;
-use crate::domain::auth::schema::{AuthResponse, LoginRequest, RefreshRequest, RegisterRequest};
+use crate::domain::auth::schema::{
+    AuthResponse, LoginRequest, MeResponse, RefreshRequest, RegisterRequest,
+};
+use crate::state::{AppState, UserContext};
 use crate::utils::{ApiError, ApiResponse};
-use crate::state::AppState;
 
 pub async fn register(
     State(app_state): State<Arc<AppState>>,
@@ -41,14 +45,12 @@ pub async fn refresh(
     State(app_state): State<Arc<AppState>>,
     Json(req): Json<RefreshRequest>,
 ) -> Result<ApiResponse<serde_json::Value>, ApiError> {
-    // Verify it's a valid refresh token
     let claims = app_state
         .auth_service
         .verify_refresh_token(&req.refresh_token)
         .map_err(|e| ApiError::internal_error(e.to_string()))?
         .ok_or_else(|| ApiError::unauthorized("Invalid or expired refresh token"))?;
 
-    // Generate new access token
     let access_token = app_state
         .auth_service
         .generate_access_from_refresh(&claims)
@@ -58,4 +60,18 @@ pub async fn refresh(
         "access_token": access_token,
     });
     Ok(ApiResponse::success(response))
+}
+
+pub async fn me(
+    State(app_state): State<Arc<AppState>>,
+    Extension(ctx): Extension<UserContext>,
+) -> Result<ApiResponse<MeResponse>, ApiError> {
+    let me = app_state
+        .auth_service
+        .get_me(ctx.user_id, ctx.tenant_id)
+        .await
+        .map_err(|e| ApiError::internal_error(e.to_string()))?
+        .ok_or_else(|| ApiError::not_found("User profile not found"))?;
+
+    Ok(ApiResponse::success(me))
 }

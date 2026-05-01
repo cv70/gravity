@@ -39,7 +39,12 @@ impl ChannelRepository {
         Ok(Self::to_account(row))
     }
 
-    pub async fn list(&self, tenant_id: Uuid, page: i64, limit: i64) -> Result<ChannelAccountListResponse> {
+    pub async fn list(
+        &self,
+        tenant_id: Uuid,
+        page: i64,
+        limit: i64,
+    ) -> Result<ChannelAccountListResponse> {
         let offset = (page - 1) * limit;
         let (rows, total) = self
             .db_dao

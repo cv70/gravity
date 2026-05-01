@@ -45,6 +45,18 @@ impl DBDao {
         Ok(row)
     }
 
+    pub async fn get_user_by_id(&self, user_id: Uuid, tenant_id: Uuid) -> Result<Option<UserRow>> {
+        let row = sqlx::query_as::<_, UserRow>(
+            "SELECT id, tenant_id, email, password_hash, name, role, last_login_at, created_at, updated_at FROM users WHERE id = $1 AND tenant_id = $2",
+        )
+        .bind(user_id)
+        .bind(tenant_id)
+        .fetch_optional(&self.db)
+        .await?;
+
+        Ok(row)
+    }
+
     pub async fn update_last_login(&self, user_id: Uuid) -> Result<()> {
         sqlx::query("UPDATE users SET last_login_at = NOW() WHERE id = $1")
             .bind(user_id)

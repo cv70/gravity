@@ -67,8 +67,12 @@ impl ChannelExecutionService {
             )
         })?;
 
-        let endpoint = channel_endpoint(&account.settings)
-            .ok_or_else(|| anyhow!("Channel account {} is missing endpoint settings", account.name))?;
+        let endpoint = channel_endpoint(&account.settings).ok_or_else(|| {
+            anyhow!(
+                "Channel account {} is missing endpoint settings",
+                account.name
+            )
+        })?;
 
         let response = self
             .dispatch_webhook(
@@ -274,7 +278,12 @@ impl ChannelExecutionService {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(anyhow!("Channel webhook {} failed: {} {}", endpoint, status, body));
+            return Err(anyhow!(
+                "Channel webhook {} failed: {} {}",
+                endpoint,
+                status,
+                body
+            ));
         }
 
         Ok(response)
@@ -293,7 +302,10 @@ fn channel_endpoint(settings: &Value) -> Option<String> {
 fn build_headers(settings: &Value) -> Result<HeaderMap> {
     let mut headers = HeaderMap::new();
 
-    if let Some(token) = settings.get("bearer_token").and_then(|value| value.as_str()) {
+    if let Some(token) = settings
+        .get("bearer_token")
+        .and_then(|value| value.as_str())
+    {
         let value = HeaderValue::from_str(&format!("Bearer {}", token))?;
         headers.insert(AUTHORIZATION, value);
     } else if let Some(token) = settings.get("auth_token").and_then(|value| value.as_str()) {
@@ -302,13 +314,19 @@ fn build_headers(settings: &Value) -> Result<HeaderMap> {
     }
 
     if let Some(api_key) = settings.get("api_key").and_then(|value| value.as_str()) {
-        headers.insert(HeaderName::from_static("x-api-key"), HeaderValue::from_str(api_key)?);
+        headers.insert(
+            HeaderName::from_static("x-api-key"),
+            HeaderValue::from_str(api_key)?,
+        );
     }
 
     if let Some(extra_headers) = settings.get("headers").and_then(|value| value.as_object()) {
         for (key, value) in extra_headers {
             if let Some(value) = value.as_str() {
-                headers.insert(HeaderName::from_bytes(key.as_bytes())?, HeaderValue::from_str(value)?);
+                headers.insert(
+                    HeaderName::from_bytes(key.as_bytes())?,
+                    HeaderValue::from_str(value)?,
+                );
             }
         }
     }

@@ -1,13 +1,17 @@
-use axum::{extract::{Extension, Path, Query, State}, Json};
+use axum::{
+    extract::{Extension, Path, Query, State},
+    Json,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::campaign::domain::CampaignRepository;
 use crate::domain::campaign::schema::{
-    Campaign, CampaignListResponse, CampaignResponse, CampaignType, CreateCampaignRequest, UpdateCampaignRequest,
+    Campaign, CampaignListResponse, CampaignResponse, CampaignType, CreateCampaignRequest,
+    UpdateCampaignRequest,
 };
-use crate::utils::{ApiError, ApiResponse};
 use crate::state::{AppState, UserContext};
+use crate::utils::{ApiError, ApiResponse};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ListQuery {
@@ -108,7 +112,8 @@ pub async fn launch_campaign(
 ) -> Result<ApiResponse<CampaignResponse>, ApiError> {
     let repo = CampaignRepository::new(app_state.registry.db_dao.clone());
 
-    let existing = repo.get_by_id(ctx.tenant_id, id)
+    let existing = repo
+        .get_by_id(ctx.tenant_id, id)
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
@@ -151,7 +156,8 @@ pub async fn pause_campaign(
 ) -> Result<ApiResponse<CampaignResponse>, ApiError> {
     let repo = CampaignRepository::new(app_state.registry.db_dao.clone());
 
-    let existing = repo.get_by_id(ctx.tenant_id, id)
+    let existing = repo
+        .get_by_id(ctx.tenant_id, id)
         .await
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 

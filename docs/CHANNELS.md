@@ -86,6 +86,7 @@ pub struct ChannelRegistry {
 - sent / delivered / opened / clicked
 - bounced / complained / unsubscribed
 - conversion / revenue / cost
+- latency / retry_count / failure_reason
 
 ## 6. 安全与凭证
 
@@ -102,6 +103,7 @@ pub fn decrypt(encrypted: &str, key: &[u8; 32]) -> String { /* ... */ }
 - 最小权限原则
 - 支持密钥轮换
 - 记录渠道连接与授权审计
+- 任何日志都不能泄露 token、secret 或签名参数
 
 ## 7. 失败处理
 

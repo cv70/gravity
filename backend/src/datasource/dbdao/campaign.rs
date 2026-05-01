@@ -41,7 +41,11 @@ impl DBDao {
         Ok(row)
     }
 
-    pub async fn get_campaign_by_id(&self, tenant_id: Uuid, id: Uuid) -> Result<Option<CampaignRow>> {
+    pub async fn get_campaign_by_id(
+        &self,
+        tenant_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<CampaignRow>> {
         let row = sqlx::query_as::<_, CampaignRow>(
             "SELECT id, tenant_id, name, campaign_type, status, description, start_date, end_date, settings, created_at, updated_at FROM campaigns WHERE id = $1 AND tenant_id = $2",
         )
@@ -131,11 +135,12 @@ impl DBDao {
     }
 
     pub async fn count_campaigns_by_status(&self, tenant_id: Uuid, status: &str) -> Result<i64> {
-        let row = sqlx::query("SELECT COUNT(*) FROM campaigns WHERE tenant_id = $1 AND status = $2")
-            .bind(tenant_id)
-            .bind(status)
-            .fetch_one(&self.db)
-            .await?;
+        let row =
+            sqlx::query("SELECT COUNT(*) FROM campaigns WHERE tenant_id = $1 AND status = $2")
+                .bind(tenant_id)
+                .bind(status)
+                .fetch_one(&self.db)
+                .await?;
 
         Ok(row.get(0))
     }

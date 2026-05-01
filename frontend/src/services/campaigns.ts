@@ -1,5 +1,5 @@
 import api from './api'
-import type { Campaign } from '@/types'
+import type { Campaign, CampaignCreatePayload, CampaignUpdatePayload } from '@/types'
 
 export const campaignsService = {
   list: async () => {
@@ -12,12 +12,12 @@ export const campaignsService = {
     return data.data as Campaign
   },
 
-  create: async (campaign: Omit<Campaign, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>) => {
+  create: async (campaign: CampaignCreatePayload) => {
     const { data } = await api.post('/campaigns', campaign)
     return data.data as Campaign
   },
 
-  update: async (id: string, campaign: Partial<Campaign>) => {
+  update: async (id: string, campaign: CampaignUpdatePayload) => {
     const { data } = await api.patch(`/campaigns/${id}`, campaign)
     return data.data as Campaign
   },
