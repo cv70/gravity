@@ -12,8 +12,8 @@ import {
   X,
   FileText,
   MessageCircle,
-  GitBranch,
   Settings,
+  Sparkles,
 } from 'lucide-react'
 
 const navigation = [
@@ -23,7 +23,7 @@ const navigation = [
   { name: '数据分析', href: '/analytics', icon: BarChart3 },
   { name: '内容管理', href: '/content', icon: FileText },
   { name: '渠道管理', href: '/channels', icon: MessageCircle },
-  { name: '工作流', href: '/workflows', icon: GitBranch },
+  { name: '自动化中枢', href: '/workflows', icon: Sparkles },
   { name: '设置', href: '/settings', icon: Settings },
 ]
 

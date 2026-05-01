@@ -27,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config = config::AppConfig::load()?;
     let app_state = AppState::new(config.clone()).await?;
+    domain::automation::worker::AutomationWorker::new(app_state.registry.db_dao.clone()).start();
 
     tracing::info!("Starting server on {}:{}", config.server.host, config.server.port);
 
@@ -50,8 +51,20 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/campaigns/{id}", get(domain::campaign::get_campaign).patch(domain::campaign::update_campaign).delete(domain::campaign::delete_campaign))
         .route("/api/v1/campaigns/{id}/launch", post(domain::campaign::launch_campaign))
         .route("/api/v1/campaigns/{id}/pause", post(domain::campaign::pause_campaign))
+        .route("/api/v1/channels", get(domain::channel::list_channels).post(domain::channel::create_channel))
+        .route("/api/v1/channels/{id}", patch(domain::channel::update_channel).delete(domain::channel::delete_channel))
         .route("/api/v1/contents", get(domain::content::list_contents).post(domain::content::create_content))
         .route("/api/v1/contents/{id}", get(domain::content::get_content).delete(domain::content::delete_content))
+        .route("/api/v1/automation/dashboard", get(domain::automation::get_dashboard))
+        .route("/api/v1/automation/jobs", get(domain::automation::list_jobs).post(domain::automation::create_job))
+        .route("/api/v1/automation/jobs/{id}/execute", post(domain::automation::execute_job))
+        .route("/api/v1/automation/runs", get(domain::automation::list_runs))
+        .route("/api/v1/automation/actions", get(domain::automation::list_actions))
+        .route("/api/v1/automation/approvals", get(domain::automation::list_approvals))
+        .route("/api/v1/automation/approvals/{id}/decision", post(domain::automation::review_approval))
+        .route("/api/v1/automation/policies", get(domain::automation::list_policies).post(domain::automation::create_policy))
+        .route("/api/v1/automation/bootstrap", post(domain::automation::bootstrap_defaults))
+        .route("/api/v1/automation/experiments", get(domain::automation::list_experiments))
         .route("/api/v1/analytics/dashboard", get(domain::analytics::get_dashboard))
         .route("/api/v1/analytics/funnel", get(domain::analytics::get_funnel))
         .layer(middleware::from_fn_with_state(

@@ -1,113 +1,170 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import api from '@/services/api'
-import { MessageCircle, Link2, Zap } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link2, MessageCircle, Plus, RefreshCw, Trash2, Zap } from 'lucide-react'
 
-interface Channel {
-  id: string
-  tenant_id: string
-  channel_type: 'email' | 'wechat' | 'xiaohongshu' | 'douyin' | 'ads'
+import { channelService } from '@/services/channel'
+import type { ChannelAccount } from '@/types'
+
+type ChannelFormState = {
+  platform: string
   name: string
-  status: 'connected' | 'disconnected' | 'error'
-  config: Record<string, unknown>
-  created_at: string
+  credentials_encrypted: string
+  endpoint: string
+  auth_token: string
+  api_key: string
+}
+
+const initialForm: ChannelFormState = {
+  platform: 'email',
+  name: '',
+  credentials_encrypted: '',
+  endpoint: '',
+  auth_token: '',
+  api_key: '',
+}
+
+const channelMeta: Record<string, { label: string; icon: ReactNode; description: string }> = {
+  email: {
+    label: '邮件',
+    icon: <MessageCircle className="h-5 w-5" />,
+    description: 'SMTP / webhook 发送',
+  },
+  wechat: {
+    label: '微信',
+    icon: <MessageCircle className="h-5 w-5" />,
+    description: '公众号 / 企业微信触达',
+  },
+  xiaohongshu: {
+    label: '小红书',
+    icon: <Link2 className="h-5 w-5" />,
+    description: '内容分发与互动',
+  },
+  douyin: {
+    label: '抖音',
+    icon: <Zap className="h-5 w-5" />,
+    description: '短视频 / 直播联动',
+  },
+  ads: {
+    label: '广告',
+    icon: <Link2 className="h-5 w-5" />,
+    description: '广告投放与预算执行',
+  },
 }
 
 export function ChannelsPage() {
+  const queryClient = useQueryClient()
   const [showModal, setShowModal] = useState(false)
-  const [selectedType, setSelectedType] = useState<string>('')
+  const [form, setForm] = useState<ChannelFormState>(initialForm)
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['channels'],
-    queryFn: async () => {
-      const { data: resp } = await api.get('/channels')
-      return resp.data as { data: Channel[] }
+    queryFn: () => channelService.list(),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: ChannelFormState) => {
+      return channelService.create({
+        platform: payload.platform,
+        name: payload.name,
+        credentials_encrypted: payload.credentials_encrypted,
+        settings: {
+          endpoint: payload.endpoint || undefined,
+          auth_token: payload.auth_token || undefined,
+          api_key: payload.api_key || undefined,
+        },
+        status: 'connected',
+      })
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['channels'] })
+      setShowModal(false)
+      setForm(initialForm)
     },
   })
 
-  const channelTypes = [
-    { type: 'email', name: '邮件', icon: '📧', description: 'SMTP 邮件发送' },
-    { type: 'wechat', name: '微信公众号', icon: '💬', description: '微信生态对接' },
-    { type: 'xiaohongshu', name: '小红书', icon: '📕', description: '内容发布和互动' },
-    { type: 'douyin', name: '抖音', icon: '🎵', description: '短视频和直播消息' },
-    { type: 'ads', name: '广告平台', icon: '📊', description: '巨量引擎/Google Ads' },
-  ]
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => channelService.remove(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['channels'] })
+    },
+  })
+
+  const connectedMap = useMemo(() => {
+    const entries = new Map<string, ChannelAccount>()
+    data?.data?.forEach((item) => entries.set(item.platform, item))
+    return entries
+  }, [data?.data])
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'connected':
-        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">已连接</span>
+        return <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700">已连接</span>
       case 'disconnected':
-        return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">未连接</span>
+        return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">未连接</span>
       case 'error':
-        return <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">错误</span>
+        return <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">错误</span>
       default:
-        return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">{status}</span>
-    }
-  }
-
-  const getChannelIcon = (type: string) => {
-    switch (type) {
-      case 'email':
-        return <MessageCircle className="h-5 w-5" />
-      case 'wechat':
-        return <MessageCircle className="h-5 w-5" />
-      case 'xiaohongshu':
-        return <Link2 className="h-5 w-5" />
-      case 'douyin':
-        return <Zap className="h-5 w-5" />
-      case 'ads':
-        return <Link2 className="h-5 w-5" />
-      default:
-        return <Link2 className="h-5 w-5" />
+        return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">{status}</span>
     }
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">渠道管理</h1>
-        <p className="text-gray-500 mt-1">连接和管理您的营销渠道</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">渠道管理</h1>
+          <p className="mt-1 text-gray-500">连接 webhook、公众号、内容平台和投放账户，供自动化执行器直接调用</p>
+        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-white hover:bg-brand-700"
+        >
+          <Plus className="h-4 w-4" />
+          添加渠道
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {channelTypes.map((channel) => {
-          const connected = data?.data?.find(c => c.channel_type === channel.type)
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {Object.entries(channelMeta).map(([platform, meta]) => {
+          const connected = connectedMap.get(platform)
           return (
-            <div key={channel.type} className="bg-white rounded-xl border p-6">
-              <div className="flex items-start justify-between">
+            <div key={platform} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-brand-50 rounded-lg text-2xl">
-                    {channel.icon}
-                  </div>
+                  <div className="rounded-xl bg-brand-50 p-3 text-brand-700">{meta.icon}</div>
                   <div>
-                    <h3 className="font-medium text-gray-900">{channel.name}</h3>
-                    <p className="text-sm text-gray-500">{channel.description}</p>
+                    <h3 className="font-semibold text-gray-900">{meta.label}</h3>
+                    <p className="text-sm text-gray-500">{meta.description}</p>
                   </div>
                 </div>
+                {connected ? getStatusBadge(connected.status) : getStatusBadge('disconnected')}
               </div>
 
-              <div className="mt-4 pt-4 border-t flex items-center justify-between">
+              <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
+                <div className="text-sm text-gray-500">
+                  {connected ? connected.name : '尚未配置'}
+                </div>
                 {connected ? (
-                  <>
-                    {getStatusBadge(connected.status)}
-                    <button className="text-sm text-red-600 hover:text-red-800">
-                      断开
-                    </button>
-                  </>
+                  <button
+                    onClick={() => deleteMutation.mutate(connected.id)}
+                    className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    断开
+                  </button>
                 ) : (
-                  <>
-                    {getStatusBadge('disconnected')}
-                    <button
-                      onClick={() => {
-                        setSelectedType(channel.type)
-                        setShowModal(true)
-                      }}
-                      className="text-sm text-brand-600 hover:text-brand-700"
-                    >
-                      连接
-                    </button>
-                  </>
+                  <button
+                    onClick={() => {
+                      setForm((prev) => ({ ...prev, platform }))
+                      setShowModal(true)
+                    }}
+                    className="inline-flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700"
+                  >
+                    <Plus className="h-4 w-4" />
+                    连接
+                  </button>
                 )}
               </div>
             </div>
@@ -115,45 +172,146 @@ export function ChannelsPage() {
         })}
       </div>
 
-      {data?.data && data.data.length > 0 && (
-        <div className="bg-white rounded-xl border">
-          <div className="px-6 py-4 border-b">
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <div>
             <h2 className="text-lg font-semibold text-gray-900">已连接渠道</h2>
+            <p className="text-sm text-gray-500">自动化执行器优先使用这些账号执行真实动作</p>
           </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {data.data.map((channel) => (
-                <div key={channel.id} className="flex items-center justify-between py-3 border-b last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-brand-50 rounded-lg">
-                      {getChannelIcon(channel.channel_type)}
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['channels'] })}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            刷新
+          </button>
+        </div>
+
+        <div className="px-6 py-4">
+          {isLoading ? (
+            <div className="py-8 text-sm text-gray-500">加载渠道中...</div>
+          ) : data?.data?.length ? (
+            <div className="space-y-3">
+              {data.data.map((channel) => {
+                const meta = channelMeta[channel.platform] ?? {
+                  label: channel.platform,
+                  icon: <Link2 className="h-5 w-5" />,
+                  description: '自定义渠道',
+                }
+                return (
+                  <div key={channel.id} className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-brand-50 p-2 text-brand-700">{meta.icon}</div>
+                      <div>
+                        <p className="font-medium text-gray-900">{channel.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {meta.label} · {'endpoint' in channel.settings ? '已配置 endpoint' : '未配置 endpoint'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{channel.name}</p>
-                      <p className="text-sm text-gray-500">{channel.channel_type}</p>
+                    <div className="flex items-center gap-3">
+                      {getStatusBadge(channel.status)}
+                      <button
+                        onClick={() => deleteMutation.mutate(channel.id)}
+                        className="text-sm text-red-600 hover:text-red-700"
+                      >
+                        删除
+                      </button>
                     </div>
                   </div>
-                  {getStatusBadge(channel.status)}
-                </div>
-              ))}
+                )
+              })}
             </div>
-          </div>
+          ) : (
+            <div className="py-8 text-sm text-gray-500">还没有连接任何渠道。</div>
+          )}
         </div>
-      )}
+      </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">连接渠道</h3>
-            <p className="text-gray-500 text-sm mb-4">
-              {channelTypes.find(c => c.type === selectedType)?.name} 渠道连接功能开发中...
-            </p>
-            <div className="mt-4 flex justify-end">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">连接渠道</h3>
+              <p className="text-sm text-gray-500">填写 webhook 或 API 配置后，自动化任务可以直接调用该渠道。</p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">渠道类型</span>
+                <select
+                  value={form.platform}
+                  onChange={(e) => setForm((prev) => ({ ...prev, platform: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                >
+                  {Object.entries(channelMeta).map(([key, meta]) => (
+                    <option key={key} value={key}>{meta.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">名称</span>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="例如：企业微信-营销群"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-medium text-gray-700">credentials_encrypted</span>
+                <input
+                  value={form.credentials_encrypted}
+                  onChange={(e) => setForm((prev) => ({ ...prev, credentials_encrypted: e.target.value }))}
+                  placeholder="可先填 placeholder，后续接密钥管理"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-medium text-gray-700">Endpoint</span>
+                <input
+                  value={form.endpoint}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endpoint: e.target.value }))}
+                  placeholder="https://hooks.example.com/dispatch"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Bearer Token</span>
+                <input
+                  value={form.auth_token}
+                  onChange={(e) => setForm((prev) => ({ ...prev, auth_token: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">API Key</span>
+                <input
+                  value={form.api_key}
+                  onChange={(e) => setForm((prev) => ({ ...prev, api_key: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded-lg"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-gray-700 hover:bg-gray-50"
               >
-                关闭
+                取消
+              </button>
+              <button
+                onClick={() => createMutation.mutate(form)}
+                disabled={createMutation.isPending}
+                className="rounded-xl bg-brand-600 px-4 py-2.5 text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                {createMutation.isPending ? '连接中...' : '保存并连接'}
               </button>
             </div>
           </div>

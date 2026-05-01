@@ -88,4 +88,28 @@ impl DBDao {
 
         Ok(result.rows_affected() > 0)
     }
+
+    pub async fn update_content_status(
+        &self,
+        tenant_id: Uuid,
+        id: Uuid,
+        status: &str,
+    ) -> Result<Option<ContentRow>> {
+        let row = sqlx::query_as::<_, ContentRow>(
+            r#"
+            UPDATE contents
+            SET status = $1,
+                updated_at = NOW()
+            WHERE id = $2 AND tenant_id = $3
+            RETURNING id, tenant_id, campaign_id, name, content_type, content, status, created_at, updated_at
+            "#,
+        )
+        .bind(status)
+        .bind(id)
+        .bind(tenant_id)
+        .fetch_optional(&self.db)
+        .await?;
+
+        Ok(row)
+    }
 }

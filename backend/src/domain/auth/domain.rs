@@ -6,6 +6,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use super::schema::{AuthResponse, LoginRequest, Organization, RegisterRequest, User, UserResponse};
+use crate::domain::automation::domain::AutomationRepository;
 use crate::config::ServerConfig;
 use crate::datasource::dbdao::DBDao;
 use crate::datasource::dbdao::schema::{OrganizationRow, UserRow};
@@ -63,6 +64,9 @@ impl AuthService {
             created_at: user_row.created_at,
             updated_at: user_row.updated_at,
         };
+
+        let automation_repo = AutomationRepository::new(self.db_dao.clone());
+        let _ = automation_repo.bootstrap_defaults(org_row.id).await;
 
         let tokens = self.generate_tokens(&user)?;
         Ok(tokens)
