@@ -1,492 +1,213 @@
 # API 文档
 
-## 认证
+## 1. 设计目标
 
-### 登录
-```
+Gravity API 是统一编排入口，不只是 CRUD 接口集合。它负责将前端、渠道、自动化工作流和分析系统连接起来，并对外提供一致的业务语义。
+
+## 2. 约定
+
+- Base Path: `/api/v1`
+- 认证方式：JWT Access Token + Refresh Token
+- 响应风格：统一 JSON
+- 多租户：所有业务请求都绑定 `tenant_id`
+- 高风险操作：需要审批或审计
+
+## 3. 认证
+
+```http
 POST /api/v1/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@example.com",
-  "password": "password"
-}
-
-Response 200:
-{
-  "user": {
-    "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-    "email": "admin@example.com",
-    "name": "Admin",
-    "role": "organization_owner"
-  },
-  "access_token": "eyJ...",
-  "refresh_token": "eyJ..."
-}
-```
-
-### 刷新 Token
-```
 POST /api/v1/auth/refresh
-Content-Type: application/json
-
-{
-  "refresh_token": "eyJ..."
-}
-
-Response 200:
-{
-  "access_token": "eyJ..."
-}
-```
-
-### 登出
-```
 DELETE /api/v1/auth/logout
-Authorization: Bearer <access_token>
 ```
 
----
+登录返回用户身份、角色、访问令牌和刷新令牌。
 
-## 联系人
+## 4. 核心资源
 
-### 列表
+### 4.1 Contacts
+
+```http
+GET    /api/v1/contacts
+POST   /api/v1/contacts
+PATCH  /api/v1/contacts/:id
+DELETE /api/v1/contacts/:id
+POST   /api/v1/contacts/batch
+POST   /api/v1/contacts/import
 ```
-GET /api/v1/contacts
-Authorization: Bearer <access_token>
 
-Query: ?page=1&limit=20&search=keyword
+用途：管理联系人、线索、标签、属性和生命周期状态。
 
-Response 200:
+### 4.2 Segments
+
+```http
+GET    /api/v1/segments
+POST   /api/v1/segments
+PATCH  /api/v1/segments/:id
+DELETE /api/v1/segments/:id
+POST   /api/v1/segments/:id/preview
+```
+
+用途：管理动态分群和人群包。
+
+### 4.3 Campaigns
+
+```http
+GET    /api/v1/campaigns
+POST   /api/v1/campaigns
+PATCH  /api/v1/campaigns/:id
+POST   /api/v1/campaigns/:id/launch
+POST   /api/v1/campaigns/:id/pause
+```
+
+用途：管理营销、运营和转化活动。
+
+### 4.4 Contents
+
+```http
+GET    /api/v1/contents
+POST   /api/v1/contents
+PATCH  /api/v1/contents/:id
+POST   /api/v1/contents/:id/generate
+POST   /api/v1/contents/:id/approve
+```
+
+用途：管理内容资产、模板和 AI 生成结果。
+
+### 4.5 Workflows
+
+```http
+GET    /api/v1/workflows
+POST   /api/v1/workflows
+PATCH  /api/v1/workflows/:id
+POST   /api/v1/workflows/:id/activate
+POST   /api/v1/workflows/:id/deactivate
+GET    /api/v1/workflows/:id/executions
+```
+
+用途：管理自动化流程和执行实例。
+
+### 4.6 Channels
+
+```http
+GET    /api/v1/channels
+POST   /api/v1/channels/connect
+POST   /api/v1/channels/:id/disconnect
+POST   /api/v1/channels/:id/validate
+GET    /api/v1/channels/:id/metrics
+```
+
+用途：管理渠道连接、授权和健康状态。
+
+### 4.7 Analytics
+
+```http
+GET /api/v1/analytics/dashboard
+GET /api/v1/analytics/funnels
+GET /api/v1/analytics/attribution
+GET /api/v1/analytics/campaigns/:id/performance
+GET /api/v1/analytics/segments/:id/performance
+```
+
+用途：查看漏斗、归因、ROI、转化和运营健康度。
+
+### 4.8 Approvals
+
+```http
+GET  /api/v1/approvals
+POST /api/v1/approvals
+PATCH /api/v1/approvals/:id
+```
+
+用途：处理高风险动作审批。
+
+### 4.9 Audit
+
+```http
+GET /api/v1/audit-logs
+```
+
+用途：查看关键操作审计记录。
+
+### 4.10 Tracking
+
+```http
+POST /api/v1/track/event
+POST /api/v1/track/identify
+POST /api/v1/track/conversion
+POST /api/v1/track/webhook/:source
+```
+
+用途：接收用户行为、身份识别和转化事件。
+
+## 5. 典型返回
+
+```json
 {
-  "data": [
-    {
-      "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "email": "user@example.com",
-      "name": "张三",
-      "phone": "13800138000",
-      "tags": ["vip", "意向客户"],
-      "attributes": {"company": "示例公司"},
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z"
-    }
-  ],
-  "total": 100,
+  "data": [],
+  "total": 0,
   "page": 1,
   "limit": 20
 }
 ```
 
-### 创建
-```
-POST /api/v1/contacts
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "name": "张三",
-  "phone": "13800138000",
-  "tags": ["vip"],
-  "attributes": {"company": "示例公司"}
-}
-
-Response 201: <contact object>
-```
-
-### 批量创建
-```
-POST /api/v1/contacts/batch
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "contacts": [
-    {"email": "user1@example.com", "name": "用户1"},
-    {"email": "user2@example.com", "name": "用户2"}
-  ]
-}
-
-Response 201: {
-  "created": 2,
-  "errors": []
-}
-```
-
-### 导入 CSV
-```
-POST /api/v1/contacts/import
-Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
-
-file: <csv file>
-
-Response 200:
-{
-  "imported": 100,
-  "errors": 5
-}
-```
-
-### 更新
-```
-PATCH /api/v1/contacts/:id
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "新名字",
-  "tags": ["vip", "重要"]
-}
-
-Response 200: <contact object>
-```
-
-### 删除
-```
-DELETE /api/v1/contacts/:id
-Authorization: Bearer <access_token>
-
-Response 204: No Content
-```
-
----
-
-## 营销活动
-
-### 列表
-```
-GET /api/v1/campaigns
-Authorization: Bearer <access_token>
-
-Response 200:
-{
-  "data": [
-    {
-      "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "name": "春季促销",
-      "type": "email",
-      "status": "active",
-      "description": "春季促销活动",
-      "start_date": "2024-03-01",
-      "end_date": "2024-03-31",
-      "metrics": {
-        "sent": 10000,
-        "opened": 3500,
-        "clicked": 800,
-        "converted": 120
-      },
-      "created_at": "2024-02-15T10:30:00Z",
-      "updated_at": "2024-03-01T10:30:00Z"
-    }
-  ]
-}
-```
-
-### 创建
-```
-POST /api/v1/campaigns
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "春季促销",
-  "type": "email",
-  "description": "春季促销活动",
-  "start_date": "2024-03-01",
-  "end_date": "2024-03-31"
-}
-
-Response 201: <campaign object>
-```
-
-### 启动
-```
-POST /api/v1/campaigns/:id/launch
-Authorization: Bearer <access_token>
-
-Response 200: <campaign object (status: "active")>
-```
-
-### 暂停
-```
-POST /api/v1/campaigns/:id/pause
-Authorization: Bearer <access_token>
-
-Response 200: <campaign object (status: "paused")>
-```
-
----
-
-## 工作流
-
-### 列表
-```
-GET /api/v1/workflows
-Authorization: Bearer <access_token>
-
-Response 200:
-{
-  "data": [
-    {
-      "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "name": "新用户欢迎流程",
-      "status": "active",
-      "trigger_type": "contact.created",
-      "steps": [...],
-      "created_at": "2024-01-15T10:30:00Z"
-    }
-  ]
-}
-```
-
-### 创建
-```
-POST /api/v1/workflows
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "新用户欢迎流程",
-  "trigger_type": "contact.created",
-  "steps": [
-    {
-      "type": "send_message",
-      "config": {
-        "channel": "email",
-        "template_id": "welcome"
-      }
-    },
-    {
-      "type": "wait",
-      "config": {"delay_hours": 24}
-    },
-    {
-      "type": "condition",
-      "config": {
-        "field": "opened_email",
-        "operator": "equals",
-        "value": true
-      }
-    }
-  ]
-}
-
-Response 201: <workflow object>
-```
-
-### 激活
-```
-POST /api/v1/workflows/:id/activate
-Authorization: Bearer <access_token>
-
-Response 200: <workflow object (status: "active")>
-```
-
-### 执行记录
-```
-GET /api/v1/workflows/:id/executions
-Authorization: Bearer <access_token>
-
-Response 200:
-{
-  "data": [
-    {
-      "id": "exec_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "workflow_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "contact_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "status": "completed",
-      "started_at": "2024-03-15T10:30:00Z",
-      "completed_at": "2024-03-15T10:30:05Z"
-    }
-  ]
-}
-```
-
----
-
-## 渠道
-
-### 列表
-```
-GET /api/v1/channels
-Authorization: Bearer <access_token>
-
-Response 200:
-{
-  "data": [
-    {
-      "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "platform": "wechat",
-      "name": "微信公众号",
-      "status": "connected",
-      "account_id": "wx_123456",
-      "last_sync_at": "2024-03-15T10:30:00Z"
-    }
-  ]
-}
-```
-
-### 连接渠道
-```
-POST /api/v1/channels/:platform/connect
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "微信公众号",
-  "app_id": "wx_xxxxx",
-  "app_secret": "xxxxx"
-}
-
-Response 201: <channel object>
-```
-
-### 状态检查
-```
-GET /api/v1/channels/:id/status
-Authorization: Bearer <access_token>
-
-Response 200:
-{
-  "connected": true,
-  "last_check_at": "2024-03-15T10:30:00Z",
-  "error": null
-}
-```
-
----
-
-## 分析
-
-### 仪表盘
-```
-GET /api/v1/analytics/dashboard
-Authorization: Bearer <access_token>
-
-Response 200:
-{
-  "total_contacts": 10500,
-  "active_campaigns": 8,
-  "total_conversions": 1250,
-  "conversion_rate": 0.119,
-  "recent_events": [...],
-  "campaign_performance": [
-    {
-      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-      "campaign_name": "春季促销",
-      "sent": 10000,
-      "opened": 3500,
-      "clicked": 800,
-      "converted": 120
-    }
-  ]
-}
-```
-
-### 漏斗分析
-```
-GET /api/v1/analytics/funnel
-Authorization: Bearer <access_token>
-Query: ?campaign_id=01ARZ3NDEKTSV4RRFFQ69G5FAV
-
-Response 200:
-{
-  "steps": [
-    {"step": "发送", "count": 10000, "dropoff_rate": 0},
-    {"step": "打开", "count": 3500, "dropoff_rate": 0.65},
-    {"step": "点击", "count": 800, "dropoff_rate": 0.77},
-    {"step": "转化", "count": 120, "dropoff_rate": 0.85}
-  ]
-}
-```
-
----
-
-## 埋点
-
-### 事件追踪
-```
-POST /api/v1/track/event
-Content-Type: application/json
-
-{
-  "event": "message.opened",
-  "contact_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-  "properties": {
-    "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-    "message_id": "msg_123"
-  },
-  "timestamp": "2024-03-15T10:30:00Z"
-}
-```
-
-### Identify
-```
-POST /api/v1/track/identify
-Content-Type: application/json
-
-{
-  "contact_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-  "traits": {
-    "name": "张三",
-    "company": "示例公司"
-  }
-}
-```
-
-### 页面浏览
-```
-POST /api/v1/track/page
-Content-Type: application/json
-
-{
-  "contact_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-  "name": "/pricing",
-  "url": "https://example.com/pricing",
-  "referrer": "https://example.com/"
-}
-```
-
-### 转化追踪
-```
-POST /api/v1/track/conversion
-Content-Type: application/json
-
-{
-  "contact_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-  "goal_id": "goal_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-  "value": 99.00,
-  "currency": "CNY",
-  "properties": {
-    "order_id": "order_123"
-  }
-}
-```
-
----
-
-## 错误响应
-
-所有错误返回统一格式：
+错误返回统一包含：
 
 ```json
 {
   "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid email format",
-    "details": {
-      "field": "email",
-      "reason": "格式不正确"
-    }
+    "code": "invalid_request",
+    "message": "...",
+    "request_id": "..."
   }
 }
 ```
 
-常见错误码：
-- `400 VALIDATION_ERROR` - 请求参数验证失败
-- `401 UNAUTHORIZED` - 未认证或 Token 过期
-- `403 FORBIDDEN` - 无权限
-- `404 NOT_FOUND` - 资源不存在
-- `429 RATE_LIMITED` - 请求过于频繁
-- `500 INTERNAL_ERROR` - 服务器内部错误
+## 6. 关键语义
+
+### 6.1 自动化执行
+
+API 调用工作流时，应返回：
+
+- 是否成功启动
+- 执行实例 ID
+- 当前状态
+- 是否需要审批
+
+### 6.2 审批流
+
+对高风险操作，API 不直接执行，而是创建审批对象，等待放行后再进入执行链路。
+
+### 6.3 可追踪性
+
+每一次写操作都应产生：
+
+- 审计记录
+- 事件记录
+- 可选的分析事件
+
+## 7. 示例场景
+
+### 7.1 启动工作流
+
+```http
+POST /api/v1/workflows/:id/activate
+```
+
+### 7.2 记录转化
+
+```http
+POST /api/v1/track/conversion
+```
+
+### 7.3 获取活动表现
+
+```http
+GET /api/v1/analytics/campaigns/:id/performance
+```
+
+## 8. 设计约束
+
+- 不要把业务规则塞进 API 控制层
+- 不要让前端直接依赖数据库语义
+- 不要用不一致的资源命名
+- 不要让高风险接口绕过审批

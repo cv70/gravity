@@ -1,14 +1,27 @@
 # 工作流引擎设计
 
-## 核心概念
+## 1. 设计目标
 
-### Workflow (工作流定义)
-工作流是一个有向无环图 (DAG)，定义了自动化流程的结构。
+Gravity 的工作流引擎不是简单的自动化脚本执行器，而是运营动作的统一编排层。它负责把策略、规则、内容、渠道和反馈串成可恢复、可审计、可扩展的执行链路。
+
+工作流引擎必须支持：
+
+- 自动触发、自动分支、自动等待、自动补偿、自动重试
+- 多渠道触达与状态回写
+- 人工审批插入关键节点
+- 失败恢复与幂等执行
+- 与实验、风控、归因、画像联动
+
+## 2. 核心概念
+
+### 2.1 Workflow
+
+Workflow 是一个有向无环图 (DAG) 或状态机定义，描述一套完整的运营动作。
 
 ```json
 {
   "id": "wf_01ARZ3NDEKTSV4RRFFQ69G5FAV",
-  "name": "新用户欢迎流程",
+  "name": "新用户自动培育流程",
   "trigger_type": "contact.created",
   "trigger_config": {},
   "steps": [
@@ -18,7 +31,7 @@
       "config": {
         "channel": "email",
         "template_id": "welcome",
-        "subject": "欢迎加入！"
+        "subject": "欢迎加入"
       }
     },
     {
@@ -40,168 +53,79 @@
         "true": ["step_4"],
         "false": ["step_5"]
       }
-    },
-    {
-      "id": "step_4",
-      "type": "send_message",
-      "config": {
-        "channel": "wechat",
-        "template_id": "followup"
-      }
-    },
-    {
-      "id": "step_5",
-      "type": "update_contact",
-      "config": {
-        "tags": ["needs_followup"]
-      }
     }
   ]
 }
 ```
 
-### Trigger (触发器)
+### 2.2 Trigger
 
-触发工作流执行的事件来源：
+触发器决定工作流何时启动。
 
-| 类型 | 配置 | 说明 |
-|------|------|------|
-| `contact.created` | - | 新联系人创建时触发 |
-| `contact.tag_added` | `{"tag": "vip"}` | 添加指定标签时触发 |
-| `contact.segment_entered` | `{"segment_id": "..."}` | 进入分群时触发 |
-| `message.clicked` | - | 消息被点击时触发 |
-| `schedule.cron` | `{"cron": "0 9 * * *"}` | 定时触发 |
-| `campaign.launched` | - | 活动启动时触发 |
-| `conversion.recorded` | - | 转化发生时触发 |
+| 类型 | 说明 |
+|------|------|
+| `contact.created` | 新联系人或线索进入系统时触发 |
+| `contact.tag_added` | 标签变化触发 |
+| `contact.segment_entered` | 用户进入某个分群时触发 |
+| `message.opened` | 消息被打开时触发 |
+| `message.clicked` | 消息被点击时触发 |
+| `conversion.recorded` | 发生转化时触发 |
+| `schedule.cron` | 定时触发 |
+| `manual.start` | 人工触发 |
 
-### Step (执行步骤)
+### 2.3 Step
 
-| 类型 | 配置 | 说明 |
-|------|------|------|
-| `send_message` | `channel`, `template_id`, `content` | 发送消息 |
-| `wait` | `delay_hours` 或 `delay_until` | 延时等待 |
-| `condition` | `field`, `operator`, `value` | 条件分支 |
-| `update_contact` | `tags`, `attributes` | 更新联系人 |
-| `add_to_list` | `list_id` | 加入分群 |
-| `remove_from_list` | `list_id` | 移出分群 |
-| `webhook` | `url`, `method`, `headers`, `body` | 调用外部 API |
-| `track_event` | `event`, `properties` | 记录自定义事件 |
-| `ai_generate` | `prompt_template`, `output_field` | AI 生成内容 |
+步骤是工作流中的执行节点。
 
-## 引擎执行流程
+| 类型 | 作用 |
+|------|------|
+| `send_message` | 调用渠道发送消息或内容 |
+| `wait` | 延时等待或等待某个条件满足 |
+| `condition` | 条件分支 |
+| `update_contact` | 更新标签、属性和生命周期状态 |
+| `add_to_segment` | 加入分群 |
+| `remove_from_segment` | 移出分群 |
+| `webhook` | 调用外部系统 |
+| `track_event` | 写入自定义事件 |
+| `ai_generate` | 生成内容或策略建议 |
+| `approval` | 进入人工审批 |
+| `alert` | 发送告警或升级处理 |
 
-```
-1. 触发事件到达
-       │
-       ▼
-2. 创建 WorkflowExecution (status: pending)
-       │
-       ▼
-3. Engine 加载 Workflow DAG
-       │
-       ▼
-4. 按拓扑序执行 Step
-       │
-       ├──→ Step 类型判断
-       │         │
-       │         ├──→ Send Message → 调用 ChannelAdapter
-       │         ├──→ Wait → 挂起，存入 scheduler
-       │         ├──→ Condition → 评估规则，选择分支
-       │         └──→ 其他类型 → 执行对应逻辑
-       │
-       ▼
-5. 产生领域事件 (workflow.step_executed)
-       │
-       ▼
-6. 更新 Execution 状态
-       │
-       ├──→ 继续 → 回第 3 步
-       │
-       └──→ 完成/Failed → 结束
-```
+## 3. 执行模型
 
-## Wait 步骤的调度
+工作流执行采用“状态机 + 事件驱动 + 延迟恢复”的组合模式。
 
-Wait 步骤需要暂停执行并在延时后恢复，引擎通过 scheduler 模块管理：
+### 执行流程
 
-```rust
-// Wait 执行时挂起
-async fn execute_wait_step(execution: &mut WorkflowExecution, step: &Step) {
-    let delay_hours = step.config.delay_hours;
-    let resume_at = Utc::now() + Duration::hours(delay_hours);
+1. 触发事件进入系统
+2. 匹配可执行的 Workflow
+3. 创建 WorkflowExecution
+4. 逐步执行节点
+5. 遇到 wait 节点时挂起并登记恢复时间
+6. 遇到 condition 节点时按规则选择分支
+7. 遇到 approval 节点时暂停，等待人工放行
+8. 触发渠道执行并接收回执
+9. 更新画像、任务状态和分析数据
+10. 继续下一节点或结束执行
 
-    // 写入待调度表
-    scheduler::schedule_resume(execution.id, step.id, resume_at).await?;
+### 状态
 
-    // 更新执行状态为 waiting
-    execution.status = ExecutionStatus::Waiting;
-    execution.current_step_index += 1;
-}
-```
+- `pending`：等待开始
+- `running`：执行中
+- `waiting`：等待恢复或等待审批
+- `completed`：成功结束
+- `failed`：执行失败
+- `cancelled`：被取消或失效
 
-Scheduler 后台任务定期扫描待恢复的执行：
+## 4. 并发与幂等
 
-```rust
-async fn process_scheduled_resumes() {
-    let now = Utc::now();
-    let pending = scheduler::fetch_due_executions(now).await?;
-
-    for (execution_id, step_id) in pending {
-        if let Some(mut execution) = workflow.load_execution(execution_id).await? {
-            execution.status = ExecutionStatus::Running;
-            engine.resume_from_step(&mut execution, step_id).await?;
-        }
-    }
-}
-```
-
-## 状态机
-
-```
-                    ┌──────────────┐
-                    │   Pending    │
-                    └──────┬───────┘
-                           │ engine.start()
-                           ▼
-                    ┌──────────────┐
-              ┌─────│   Running    │─────┐
-              │     └──────────────┘     │
-              │                          │
-   step.type == "wait"         step completed normally
-              │                          │
-              ▼                          ▼
-     ┌──────────────┐           ┌──────────────┐
-     │   Waiting    │           │   Running    │
-     └──────┬───────┘           └──────────────┘
-            │ scheduler.resume()
-            │
-            ▼
-     ┌──────────────┐
-     │   Running    │ ──────────────────► (继续执行下一步)
-     └──────────────┘
-              │
-              │ condition branch selected
-              ▼
-     ┌──────────────┐
-     │   Running    │
-     └──────────────┘
-              │
-              ├──── step failed ────┐
-              │                     │
-              ▼                     ▼
-     ┌──────────────┐     ┌──────────────┐
-     │   Failed     │     │  Completed   │
-     └──────────────┘     └──────────────┘
-```
-
-## 并发控制
-
-- 每个 Contact 同一时间只能有一个运行的 Workflow Execution
-- 防止重复触发：Contact 已在某 Workflow 运行中时，新触发事件会被忽略或排队
+- 同一联系人同一工作流同时只允许一个有效执行实例
+- 同一节点的重复投递必须具备幂等保护
+- 触发事件需要去重，避免重复创建执行实例
+- 恢复任务需要可重放，避免调度器故障导致流程丢失
 
 ```rust
 async fn try_start_workflow(contact_id: Uuid, workflow_id: Uuid) -> Result<ExecutionId> {
-    // 使用 Redis SETNX 实现分布式锁
     let lock_key = format!("workflow:running:{}:{}", contact_id, workflow_id);
     if !redis::set_nx(&lock_key, EXECUTION_LOCK_TTL).await? {
         return Err(WorkflowError::AlreadyRunning);
@@ -212,31 +136,32 @@ async fn try_start_workflow(contact_id: Uuid, workflow_id: Uuid) -> Result<Execu
 }
 ```
 
-## 事件驱动集成
+## 5. 调度与恢复
 
-Workflow 通过 NATS 订阅领域事件来触发：
+`wait` 节点不会阻塞线程，而是写入调度队列或待恢复表，由后台调度器按时间恢复。
 
-```rust
-async fn subscribe_to_triggers(nats: &NatsContext) {
-    // 监听 contact.created 事件
-    nats.subscribe("contact.created", |event| {
-        let contact_id = event.contact_id;
-        let workflows = find_triggered_workflows("contact.created").await?;
-        for workflow in workflows {
-            engine.start(workflow.id, contact_id).await?;
-        }
-    }).await;
-}
-```
+恢复规则：
 
-## 可视化编辑器数据结构
+- 到点后自动恢复
+- 如果依赖条件未满足，可重新排队或进入补偿分支
+- 如果工作流定义已变更，恢复时需按版本策略处理
 
-前端 ReactFlow 使用的节点/边结构：
+## 6. 事件联动
+
+工作流会订阅和发布领域事件，形成闭环：
+
+- 输入：`contact.*`、`message.*`、`conversion.*`、`segment.*`
+- 输出：`workflow.started`、`workflow.step_executed`、`workflow.completed`、`workflow.failed`
+- 联动：画像更新、策略重算、分析入库、任务派发、审批流转
+
+## 7. 可视化编辑器
+
+前端编辑器使用节点/边结构表达工作流，允许运营和产品在可视化界面中配置流程。
 
 ```typescript
 interface WorkflowNode {
   id: string
-  type: 'trigger' | 'action' | 'condition' | 'delay'
+  type: 'trigger' | 'action' | 'condition' | 'delay' | 'approval'
   position: { x: number; y: number }
   data: {
     stepType: string
@@ -244,12 +169,11 @@ interface WorkflowNode {
     label: string
   }
 }
-
-interface WorkflowEdge {
-  id: string
-  source: string
-  target: string
-  sourceHandle?: 'true' | 'false' // condition 的分支
-  label?: string
-}
 ```
+
+## 8. 设计约束
+
+- 工作流必须可解释，不能只依赖黑盒决策
+- 任何自动化动作都必须可追踪到来源策略和触发条件
+- 高风险动作必须可插入审批
+- 工作流应尽量配置化，不依赖硬编码业务分支
