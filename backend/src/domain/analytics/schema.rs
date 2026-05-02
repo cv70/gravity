@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct TrackEventRequest {
     pub event: String,
     pub contact_id: Option<String>,
+    pub tenant_id: Option<String>,
     pub properties: Option<serde_json::Value>,
     pub timestamp: Option<String>,
 }
@@ -12,12 +13,14 @@ pub struct TrackEventRequest {
 pub struct IdentifyRequest {
     pub contact_id: Option<String>,
     pub email: Option<String>,
+    pub tenant_id: Option<String>,
     pub traits: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageRequest {
     pub contact_id: Option<String>,
+    pub tenant_id: Option<String>,
     pub name: String,
     pub url: Option<String>,
     pub referrer: Option<String>,
@@ -26,6 +29,7 @@ pub struct PageRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConversionRequest {
     pub contact_id: String,
+    pub tenant_id: Option<String>,
     pub goal_id: Option<String>,
     pub value: Option<f64>,
     pub currency: Option<String>,

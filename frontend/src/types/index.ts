@@ -43,7 +43,7 @@ export interface ContactCreatePayload {
   subscribed?: boolean
 }
 
-export interface ContactUpdatePayload extends Partial<ContactCreatePayload> {}
+export type ContactUpdatePayload = Partial<ContactCreatePayload>
 
 export interface Campaign {
   id: string
@@ -251,4 +251,100 @@ export interface AutomationBootstrapResult {
 export interface ChannelAccountListResponse {
   data: ChannelAccount[]
   total: number
+}
+
+export interface Segment {
+  id: string
+  tenant_id: string
+  name: string
+  definition: Record<string, unknown>
+  is_dynamic: boolean
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SegmentListResponse {
+  data: Segment[]
+  total: number
+}
+
+export interface SegmentCreatePayload {
+  name: string
+  definition: Record<string, unknown>
+  is_dynamic?: boolean
+  status?: string
+}
+
+export interface SegmentUpdatePayload {
+  name?: string
+  definition?: Record<string, unknown>
+  is_dynamic?: boolean
+  status?: string
+}
+
+export interface SegmentPreviewPayload {
+  definition?: Record<string, unknown>
+}
+
+export interface Approval {
+  id: string
+  tenant_id: string
+  object_type: string
+  object_id: string
+  status: 'pending' | 'approved' | 'rejected' | string
+  requested_by: string
+  approved_by?: string | null
+  reason?: string | null
+  decided_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ApprovalListResponse {
+  data: Approval[]
+  total: number
+}
+
+export interface ApprovalQuery {
+  page?: number
+  limit?: number
+  status?: string
+  object_type?: string
+}
+
+export interface AuditLog {
+  id: string
+  tenant_id: string
+  user_id?: string | null
+  action: string
+  target_type?: string | null
+  target_id?: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface AuditLogListResponse {
+  data: AuditLog[]
+  total: number
+}
+
+export interface AuditLogQuery {
+  page?: number
+  limit?: number
+  action?: string
+  target_type?: string
+  start_at?: string
+  end_at?: string
+}
+
+export interface InsightItem {
+  title: string
+  severity: 'low' | 'medium' | 'high' | string
+  description: string
+  evidence: Record<string, unknown>
+}
+
+export interface InsightListResponse {
+  data: InsightItem[]
 }

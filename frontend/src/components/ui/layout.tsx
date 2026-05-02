@@ -1,19 +1,36 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Building2, FileText, LayoutDashboard, LogOut, Menu, MessageCircle, Settings, Sparkles, UserCircle2, Users, Megaphone, BarChart3, X } from 'lucide-react'
+import { Archive, Building2, FileText, Layers3, LayoutDashboard, LogOut, Menu, MessageCircle, Settings, Sparkles, UserCircle2, Users, Megaphone, BarChart3, ShieldCheck, X } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
 const navigation = [
-  { name: '仪表盘', href: '/', icon: LayoutDashboard },
-  { name: '联系人', href: '/contacts', icon: Users },
-  { name: '营销活动', href: '/campaigns', icon: Megaphone },
-  { name: '数据分析', href: '/analytics', icon: BarChart3 },
-  { name: '内容管理', href: '/content', icon: FileText },
-  { name: '渠道管理', href: '/channels', icon: MessageCircle },
-  { name: '自动化中枢', href: '/workflows', icon: Sparkles },
-  { name: '设置', href: '/settings', icon: Settings },
+  {
+    label: '经营',
+    items: [
+      { name: '仪表盘', href: '/', icon: LayoutDashboard },
+      { name: '联系人', href: '/contacts', icon: Users },
+      { name: '营销活动', href: '/campaigns', icon: Megaphone },
+      { name: '数据分析', href: '/analytics', icon: BarChart3 },
+      { name: '内容管理', href: '/content', icon: FileText },
+      { name: '渠道管理', href: '/channels', icon: MessageCircle },
+    ],
+  },
+  {
+    label: '自动化',
+    items: [
+      { name: '自动化中枢', href: '/workflows', icon: Sparkles },
+      { name: '治理总览', href: '/governance', icon: ShieldCheck },
+      { name: '分群中心', href: '/segments', icon: Layers3 },
+      { name: '审批中心', href: '/approvals', icon: ShieldCheck },
+      { name: '审计中心', href: '/audit', icon: Archive },
+    ],
+  },
+  {
+    label: '系统',
+    items: [{ name: '设置', href: '/settings', icon: Settings }],
+  },
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -32,24 +49,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="text-xl font-bold tracking-tight text-white">Gravity</span>
             <button onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
           </div>
-          <nav className="px-3 py-4 space-y-1">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
-                    isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.name}
-                </Link>
-              )
-            })}
+          <nav className="px-3 py-4 space-y-4">
+            {navigation.map((group) => (
+              <div key={group.label} className="space-y-2">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  {group.label}
+                </p>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const isActive = location.pathname === item.href
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        onClick={() => setSidebarOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                          isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                        )}
+                      >
+                        <item.icon className="h-5 w-5" />
+                        {item.name}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
           <div className="absolute bottom-4 left-3 right-3 space-y-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-slate-300">
@@ -77,23 +103,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex h-16 items-center px-6 border-b border-white/10 bg-slate-950">
           <span className="text-xl font-bold tracking-tight text-white">Gravity</span>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 bg-slate-950 border-r border-white/10">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
-                  isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 px-3 py-4 space-y-4 bg-slate-950 border-r border-white/10">
+          {navigation.map((group) => (
+            <div key={group.label} className="space-y-2">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                {group.label}
+              </p>
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                        isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                      )}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {item.name}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
         <div className="p-4 border-t border-white/10 bg-slate-950">
           <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-slate-300">

@@ -21,7 +21,13 @@ export function DashboardPage() {
   })
 
   if (isLoading) {
-    return <div className="animate-pulse">加载中...</div>
+    return (
+      <div className="space-y-8">
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+          <p className="animate-pulse text-slate-500">正在加载运营驾驶舱...</p>
+        </div>
+      </div>
+    )
   }
 
   const stats = [
@@ -113,7 +119,7 @@ export function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-8 text-center text-gray-500">暂无自动化任务，先创建欢迎流或再激活流。</div>
+              <div className="py-8 text-center text-gray-500">当前没有自动化任务，建议先创建欢迎流或激活已有流程。</div>
             )}
           </div>
         </div>
@@ -130,7 +136,7 @@ export function DashboardPage() {
               </div>
             )) : (
               <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">
-                暂无建议，说明当前自动化链路比较平稳。
+                当前没有建议，说明自动化链路暂时保持稳定。
               </div>
             )}
           </div>
@@ -158,7 +164,7 @@ export function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-8 text-center text-gray-500">没有待审批项</div>
+              <div className="py-8 text-center text-gray-500">当前没有待审批项。</div>
             )}
           </div>
         </div>
@@ -183,7 +189,7 @@ export function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">暂无政策规则</p>
+                <p className="text-sm text-gray-500">当前没有政策规则。</p>
               )}
             </div>
             <div>
@@ -201,7 +207,7 @@ export function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">暂无实验</p>
+                <p className="text-sm text-gray-500">当前没有实验记录。</p>
               )}
             </div>
           </div>
@@ -233,7 +239,7 @@ export function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">暂无活动数据</p>
+            <p className="text-gray-500 text-center py-8">当前没有活动数据。</p>
           )}
         </div>
       </div>

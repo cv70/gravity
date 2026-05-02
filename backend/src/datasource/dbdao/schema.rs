@@ -177,3 +177,81 @@ pub struct ChannelAccountRow {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct SegmentRow {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub name: String,
+    pub definition: serde_json::Value,
+    pub is_dynamic: bool,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct WorkflowRow {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub version: i32,
+    pub trigger_type: String,
+    pub trigger_config: serde_json::Value,
+    pub steps: serde_json::Value,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct WorkflowExecutionRow {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub workflow_id: Uuid,
+    pub contact_id: Uuid,
+    pub status: String,
+    pub current_step_index: i32,
+    pub context: serde_json::Value,
+    pub started_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct WorkflowScheduleRow {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub workflow_execution_id: Uuid,
+    pub resume_at: DateTime<Utc>,
+    pub payload: serde_json::Value,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct ApprovalRow {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub object_type: String,
+    pub object_id: Uuid,
+    pub status: String,
+    pub requested_by: Uuid,
+    pub approved_by: Option<Uuid>,
+    pub reason: Option<String>,
+    pub decided_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct AuditLogRow {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub action: String,
+    pub target_type: Option<String>,
+    pub target_id: Option<Uuid>,
+    pub metadata: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}

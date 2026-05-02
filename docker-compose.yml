@@ -1,8 +1,6 @@
-version: '3.9'
-
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: gravity
       POSTGRES_PASSWORD: gravity_dev
@@ -10,7 +8,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       - ./backend/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gravity"]
@@ -19,7 +17,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     ports:
       - "6379:6379"
     healthcheck:
@@ -29,7 +27,7 @@ services:
       retries: 5
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24-alpine
+    image: clickhouse:26.3
     environment:
       CLICKHOUSE_DB: gravity_analytics
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
@@ -45,7 +43,7 @@ services:
       retries: 5
 
   nats:
-    image: nats:2.10-alpine
+    image: nats:2.11-alpine
     ports:
       - "4222:4222"
       - "8222:8222"
@@ -62,10 +60,17 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://gravity:gravity_dev@postgres:5432/gravity
-      REDIS_URL: redis://redis:6379
-      CLICKHOUSE_URL: clickhouse://clickhouse:9000
-      NATS_URL: nats://nats:4222
+      GRAVITY__DATABASE__HOST: postgres
+      GRAVITY__DATABASE__USER: gravity
+      GRAVITY__DATABASE__PASS: gravity_dev
+      GRAVITY__DATABASE__DB_NAME: gravity
+      GRAVITY__REDIS__HOST: redis
+      GRAVITY__REDIS__PORT: 6379
+      GRAVITY__CLICKHOUSE__HOST: clickhouse
+      GRAVITY__CLICKHOUSE__PORT: 9000
+      GRAVITY__CLICKHOUSE__DATABASE: gravity_analytics
+      GRAVITY__NATS__HOST: nats
+      GRAVITY__NATS__PORT: 4222
     depends_on:
       postgres:
         condition: service_healthy

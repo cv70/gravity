@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, Sparkles, Trash2 } from 'lucide-react'
 
 import { contentsService } from '@/services/contents'
+import { Button } from '@/components/ui/button'
 import type { Content, CreateContentPayload } from '@/types'
 
 type ContentFormState = {
@@ -99,13 +100,13 @@ export function ContentsPage() {
                 文案、脚本、邮件、落地页、社媒内容都可以在这里统一生成、存储、复用和分发。
               </p>
             </div>
-            <button
+            <Button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300"
+              variant="brand"
             >
               <Plus className="h-4 w-4" />
-              创建内容
-            </button>
+              新建内容资产
+            </Button>
           </div>
         </div>
       </div>
@@ -120,17 +121,18 @@ export function ContentsPage() {
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-gray-500">加载中...</div>
+          <div className="p-8 text-center text-gray-500">正在加载内容资产...</div>
         ) : !data?.data.length ? (
           <div className="p-10 text-center">
             <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">暂无内容，先创建你的第一份素材</p>
-            <button
+            <p className="text-gray-500">当前没有内容资产，建议先创建第一份素材。</p>
+            <Button
               onClick={() => setShowModal(true)}
-              className="mt-4 text-brand-600 hover:text-brand-700 font-medium"
+              variant="secondary"
+              className="mt-4"
             >
-              创建第一个内容
-            </button>
+              新建内容资产
+            </Button>
           </div>
         ) : (
           <table className="w-full">
@@ -171,14 +173,15 @@ export function ContentsPage() {
                   </td>
                   <td className="px-6 py-4 text-gray-500">{new Date(content.created_at).toLocaleString('zh-CN')}</td>
                   <td className="px-6 py-4 text-right">
-                    <button
+                    <Button
                       onClick={() => handleDelete(content)}
                       disabled={deleteMutation.isPending}
-                      className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+                      variant="ghost"
+                      className="text-red-600 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />
                       删除
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -191,7 +194,7 @@ export function ContentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
             <div className="border-b px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">创建内容</h3>
+              <h3 className="text-lg font-semibold text-gray-900">新建内容资产</h3>
               <p className="text-sm text-gray-500">内容将成为后续工作流、渠道发布和 A/B 实验的基础素材。</p>
             </div>
             <form onSubmit={handleCreate} className="space-y-4 p-6">
@@ -240,16 +243,16 @@ export function ContentsPage() {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border px-4 py-2 text-sm">
+                <Button type="button" onClick={() => setShowModal(false)} variant="secondary">
                   取消
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  variant="brand"
                 >
                   {createMutation.isPending ? '创建中...' : '创建内容'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

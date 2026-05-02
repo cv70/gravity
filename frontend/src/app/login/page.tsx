@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, BrainCircuit, Globe2, ShieldCheck } from 'lucide-react'
 
 import { useAuthStore } from '@/stores/auth'
+import { Button } from '@/components/ui/button'
 
 type Mode = 'login' | 'register'
 
@@ -48,7 +49,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.12),transparent_30%),linear-gradient(180deg,#081120_0%,#0f172a_55%,#f4f7fb_55%,#f4f7fb_100%)]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.12),transparent_30%),linear-gradient(180deg,#081120_0%,#0f172a_100%)]">
       <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[1.15fr_0.85fr]">
         <div className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="relative z-10 max-w-xl space-y-8">
@@ -97,8 +98,9 @@ export function LoginPage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.18),transparent_20%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.2),transparent_22%)]" />
         </div>
 
-        <div className="flex items-center justify-center px-4 py-10 lg:px-10">
-          <div className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-2xl backdrop-blur-xl">
+        <div className="relative flex items-center justify-center px-4 py-10 lg:px-10">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.12),transparent_25%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.15),transparent_25%)] pointer-events-none" />
+          <div className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/95 p-8 shadow-2xl backdrop-blur-xl">
             <div className="text-center">
               <div className="inline-flex items-center justify-center rounded-2xl bg-brand-50 px-4 py-2 text-brand-700">
                 <BrainCircuit className="h-5 w-5" />
@@ -114,20 +116,22 @@ export function LoginPage() {
             </div>
 
             <div className="mt-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1 text-sm font-medium">
-              <button
+              <Button
                 type="button"
                 onClick={() => setMode('login')}
-                className={`rounded-xl px-3 py-2 transition ${mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                variant={mode === 'login' ? 'secondary' : 'ghost'}
+                className="rounded-xl px-3 py-2"
               >
                 登录
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setMode('register')}
-                className={`rounded-xl px-3 py-2 transition ${mode === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                variant={mode === 'register' ? 'secondary' : 'ghost'}
+                className="rounded-xl px-3 py-2"
               >
                 注册
-              </button>
+              </Button>
             </div>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -181,14 +185,15 @@ export function LoginPage() {
                 />
               </div>
 
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                variant="brand"
+                className="w-full py-3"
               >
                 {loading ? '处理中...' : mode === 'login' ? '登录进入系统' : '注册并初始化'}
                 {!loading && <ArrowRight className="h-4 w-4" />}
-              </button>
+              </Button>
             </form>
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">

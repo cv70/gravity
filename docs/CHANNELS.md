@@ -14,7 +14,7 @@
 
 ## 2. 统一抽象
 
-所有渠道都实现同一个 `ChannelAdapter` 接口。
+所有渠道都实现同一个 `ChannelAdapter` 接口。业务层只面向这个抽象，不直接依赖具体平台 SDK。
 
 ```rust
 #[async_trait]

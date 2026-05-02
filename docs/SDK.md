@@ -1,6 +1,10 @@
 # JavaScript 追踪 SDK
 
-## 安装
+## 1. 设计目标
+
+Gravity SDK 用于在网页端采集用户身份、页面浏览、行为事件和转化事件，并把数据稳定送到 Gravity API。它只负责采集、缓存、合并和上报，不承载业务规则。
+
+## 2. 安装
 
 ```html
 <script src="https://cdn.example.com/gravity-sdk.min.js"></script>
@@ -22,7 +26,7 @@ const gravity = new Gravity({
 })
 ```
 
-## 初始化配置
+## 3. 初始化配置
 
 ```typescript
 interface GravityOptions {
@@ -36,21 +40,21 @@ interface GravityOptions {
 }
 ```
 
-## 核心方法
+## 4. 核心方法
 
-### identify
+### 4.1 identify
 
 关联用户身份和属性：
 
 ```javascript
 // 基本用法
 gravity.identify({
-  id: 'user_123456',         // 用户唯一 ID
-  email: 'user@example.com', // 邮箱
-  name: '张三',              // 姓名
-  phone: '13800138000',      // 电话
-  createdAt: '2024-01-15T10:30:00Z', // 注册时间
-  plan: 'enterprise',       // 自定义属性
+  id: 'user_123456',
+  email: 'user@example.com',
+  name: '张三',
+  phone: '13800138000',
+  createdAt: '2024-01-15T10:30:00Z',
+  plan: 'enterprise',
   company: '示例公司',
 })
 
@@ -61,7 +65,7 @@ gravity.identify({
 })
 ```
 
-### track
+### 4.2 track
 
 追踪用户行为事件：
 
@@ -88,7 +92,7 @@ gravity.track('button.clicked', {
 })
 ```
 
-### trackPage
+### 4.3 trackPage
 
 快捷追踪页面浏览：
 
@@ -103,23 +107,23 @@ gravity.trackPage({
 })
 ```
 
-### trackConversion
+### 4.4 trackConversion
 
 追踪转化事件：
 
 ```javascript
 gravity.trackConversion({
-  goal_id: 'goal_purchase',    // 转化目标 ID
-  value: 99.00,               // 转化金额
-  currency: 'CNY',            // 货币
-  order_id: 'order_12345',    // 订单 ID
-  items: [                    // 商品列表（可选）
-    { id: 'prod_001', name: '商品A', price: 49.00, quantity: 2 }
+  goal_id: 'goal_purchase',
+  value: 99.0,
+  currency: 'CNY',
+  order_id: 'order_12345',
+  items: [
+    { id: 'prod_001', name: '商品A', price: 49.0, quantity: 2 },
   ],
 })
 ```
 
-## 匿名追踪
+## 5. 匿名追踪
 
 在用户未登录时，SDK 自动生成匿名 ID 存储在 cookie 中：
 
@@ -135,10 +139,9 @@ gravity.identify({
   id: 'user_123',
   email: 'user@example.com',
 })
-// 匿名 ID 会自动与正式 ID 关联
 ```
 
-## 批量发送
+## 6. 批量发送
 
 SDK 会缓存事件并批量发送以提高性能：
 
@@ -158,9 +161,9 @@ gravity.on('flush', (count) => {
 })
 ```
 
-## 广告追踪
+## 7. 广告追踪
 
-### UTM 参数
+### 7.1 UTM 参数
 
 自动解析并存储 UTM 参数：
 
@@ -169,10 +172,10 @@ gravity.on('flush', (count) => {
 gravity.track('page.viewed') // 自动附加 utm_* 属性
 
 // 手动设置 UTM
-gravity utmFromURL()
+gravity.utmFromURL()
 ```
 
-### 广告落地页转化追踪
+### 7.2 广告落地页转化追踪
 
 ```javascript
 // 在转化页面调用
@@ -184,9 +187,9 @@ gravity.trackConversion({
 // SDK 会自动记录 referrer 和 UTM 参数
 ```
 
-## 隐私与合规
+## 8. 隐私与合规
 
-### 禁用追踪
+### 8.1 禁用追踪
 
 ```javascript
 // 全局禁用
@@ -196,7 +199,7 @@ gravity.optOut()
 gravity.optIn()
 ```
 
-### 匿名化 IP
+### 8.2 匿名化 IP
 
 ```javascript
 const gravity = new Gravity({
@@ -205,11 +208,10 @@ const gravity = new Gravity({
 })
 ```
 
-### 敏感字段过滤
+### 8.3 敏感字段过滤
 
 ```javascript
 gravity.addFilter((event) => {
-  // 过滤敏感字段
   if (event.properties.password) {
     delete event.properties.password
   }
@@ -217,7 +219,7 @@ gravity.addFilter((event) => {
 })
 ```
 
-### GDPR 合规
+### 8.4 GDPR 合规
 
 ```javascript
 // 用户请求删除数据
@@ -230,7 +232,7 @@ gravity.exportUserData(anonymousId, (data) => {
 })
 ```
 
-## 调试
+## 9. 调试
 
 ```javascript
 // 开启调试模式
@@ -246,7 +248,7 @@ gravity.on('error', (error) => {
 })
 ```
 
-## React 集成
+## 10. React 集成
 
 ```jsx
 import { useEffect } from 'react'
@@ -259,7 +261,6 @@ function App() {
     gravity.track('app.loaded')
   }, [])
 
-  // 追踪按钮点击
   const handleCTA = () => {
     gravity.track('cta.clicked', { button: 'get_started' })
   }
@@ -268,7 +269,7 @@ function App() {
 }
 ```
 
-## Next.js 集成
+## 11. Next.js 集成
 
 ```typescript
 // lib/gravity.ts
@@ -287,7 +288,6 @@ export default function App({ Component, pageProps }) {
   const router = useRouter()
 
   useEffect(() => {
-    // 自动追踪页面浏览
     const handleRouteChange = (url) => {
       gravity.trackPage({ name: url })
     }
@@ -300,7 +300,7 @@ export default function App({ Component, pageProps }) {
 }
 ```
 
-## API 端点
+## 12. API 端点
 
 SDK 发送数据到以下端点：
 
@@ -311,7 +311,7 @@ SDK 发送数据到以下端点：
 | POST | `/api/v1/track/page` | 页面浏览 |
 | POST | `/api/v1/track/conversion` | 转化追踪 |
 
-## 错误处理
+## 13. 错误处理
 
 ```javascript
 gravity.on('error', (error) => {
@@ -323,7 +323,7 @@ gravity.on('error', (error) => {
 })
 ```
 
-## 类型定义
+## 14. 类型定义
 
 ```typescript
 interface TrackEvent {

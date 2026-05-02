@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, ExternalLink, Link2, MessageCircle, PencilLine, Plus, RefreshCw, Settings2, Trash2, X, Zap } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
 import { channelService } from '@/services/channel'
 import type { ChannelAccount, ChannelCreatePayload } from '@/types'
 
@@ -155,13 +156,13 @@ export function ChannelsPage() {
                 邮件、微信、广告、内容平台都在这里纳管，供自动化工作流统一调度。
               </p>
             </div>
-            <button
+            <Button
               onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300"
+              variant="brand"
             >
               <Plus className="h-4 w-4" />
               添加渠道
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -189,13 +190,14 @@ export function ChannelsPage() {
             <h2 className="text-lg font-semibold text-slate-900">已连接渠道</h2>
             <p className="text-sm text-slate-500">管理渠道配置、凭证和执行状态</p>
           </div>
-          <button
+          <Button
             onClick={() => queryClient.invalidateQueries({ queryKey: ['channels'] })}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            variant="secondary"
+            size="sm"
           >
             <RefreshCw className="h-4 w-4" />
             刷新
-          </button>
+          </Button>
         </div>
 
         {isLoading ? (
@@ -234,31 +236,35 @@ export function ChannelsPage() {
                   </div>
 
                   <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <button
+                    <Button
                       onClick={() => openEdit(channel)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                      variant="secondary"
+                      size="sm"
                     >
                       <PencilLine className="h-4 w-4" />
                       编辑
-                    </button>
+                    </Button>
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button
                         onClick={() => queryClient.invalidateQueries({ queryKey: ['channels'] })}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-lg px-3 py-1.5"
                       >
                         <RefreshCw className="h-4 w-4" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => {
                           if (window.confirm(`确定要断开渠道 "${channel.name}" 吗？`)) {
                             deleteMutation.mutate(channel.id)
                           }
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                        variant="destructive"
+                        size="sm"
                       >
                         <Trash2 className="h-4 w-4" />
                         断开
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -278,9 +284,9 @@ export function ChannelsPage() {
                 <h3 className="text-lg font-semibold text-slate-900">{editing ? '编辑渠道' : '连接渠道'}</h3>
                 <p className="text-sm text-slate-500">填写 webhook 或 API 配置后，自动化任务可以直接调用该渠道。</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+              <Button onClick={() => setShowModal(false)} variant="ghost" size="sm" className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 p-6">
@@ -359,16 +365,16 @@ export function ChannelsPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Button type="button" onClick={() => setShowModal(false)} variant="secondary">
                   取消
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
-                  className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                  variant="brand"
                 >
                   {editing ? '保存更改' : createMutation.isPending ? '连接中...' : '连接渠道'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

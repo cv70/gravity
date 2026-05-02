@@ -1,4 +1,6 @@
 pub mod analytics;
+pub mod approval;
+pub mod audit;
 pub mod auth;
 pub mod automation;
 pub mod campaign;
@@ -7,6 +9,8 @@ pub mod contact;
 pub mod content;
 pub mod dao;
 pub mod schema;
+pub mod segment;
+pub mod workflow;
 pub mod user;
 
 pub use dao::DBDao;

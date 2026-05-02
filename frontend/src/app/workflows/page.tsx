@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
@@ -30,6 +30,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { automationService } from '@/services/automation'
+import { Button } from '@/components/ui/button'
 import type { AutomationJob, AutomationAction, ApprovalRequest, Experiment, PolicyRule, AutomationRun } from '@/types'
 
 type JobStatusFilter = 'all' | AutomationJob['status']
@@ -127,26 +128,18 @@ export function WorkflowsPage() {
     },
   })
 
-  const jobs = data?.jobs ?? []
+  const jobs = useMemo(() => data?.jobs ?? [], [data?.jobs])
   const filteredJobs = useMemo(() => {
     if (statusFilter === 'all') return jobs
     return jobs.filter((job) => job.status === statusFilter)
   }, [jobs, statusFilter])
 
-  useEffect(() => {
-    if (!filteredJobs.length) {
-      setSelectedJobId(null)
-      return
-    }
-    const selectedStillExists = filteredJobs.some((job) => job.id === selectedJobId)
-    if (!selectedJobId || !selectedStillExists) {
-      setSelectedJobId(filteredJobs[0].id)
-    }
-  }, [filteredJobs, selectedJobId])
-
   const selectedJob = useMemo(
-    () => jobs.find((job) => job.id === selectedJobId) ?? filteredJobs[0] ?? jobs[0] ?? null,
-    [filteredJobs, jobs, selectedJobId],
+    () => {
+      if (!filteredJobs.length) return null
+      return filteredJobs.find((job) => job.id === selectedJobId) ?? filteredJobs[0]
+    },
+    [filteredJobs, selectedJobId],
   )
 
   const selectedRuns = useMemo<AutomationRun[]>(() => {
@@ -259,20 +252,20 @@ export function WorkflowsPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button
+              <Button
                 onClick={() => refetch()}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/8 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/12"
+                variant="ghost"
               >
                 <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
                 刷新看板
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => setShowModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300"
+                variant="brand"
               >
                 <Plus className="h-4 w-4" />
                 新建自动化任务
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -302,11 +295,13 @@ export function WorkflowsPage() {
                 <h2 className="mt-1 text-lg font-semibold text-slate-900">按状态筛选任务流</h2>
               </div>
               <div className="flex flex-wrap gap-2">
-                {(['all', 'draft', 'waiting_approval', 'active', 'paused', 'completed', 'failed'] as JobStatusFilter[]).map((status) => (
-                  <button
+                  {(['all', 'draft', 'waiting_approval', 'active', 'paused', 'completed', 'failed'] as JobStatusFilter[]).map((status) => (
+                  <Button
                     key={status}
                     onClick={() => setStatusFilter(status)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
+                    variant="secondary"
+                    size="sm"
+                    className={`rounded-full px-3 py-1.5 ${
                       statusFilter === status
                         ? 'border-slate-900 bg-slate-900 text-white'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -316,7 +311,7 @@ export function WorkflowsPage() {
                     <span className={`rounded-full px-2 py-0.5 text-xs ${statusFilter === status ? 'bg-white/12' : 'bg-slate-100'}`}>
                       {filterCounts[status]}
                     </span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -333,9 +328,18 @@ export function WorkflowsPage() {
                     const currentIndex = currentStep ? steps.indexOf(currentStep) : -1
 
                     return (
-                      <button
+                      <div
                         key={job.id}
                         onClick={() => setSelectedJobId(job.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            setSelectedJobId(job.id)
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
                         className={`text-left rounded-2xl border p-5 transition ${
                           isSelected
                             ? 'border-cyan-400 bg-cyan-50 shadow-[0_0_0_1px_rgba(34,211,238,0.18)]'
@@ -398,17 +402,18 @@ export function WorkflowsPage() {
                               下次动作 {formatDateTime(job.next_action_at)}
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <button
+                              <Button
                                 onClick={(event) => {
                                   event.stopPropagation()
                                   executeMutation.mutate({ id: job.id })
                                 }}
                                 disabled={executeMutation.isPending}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
+                                variant="brand"
+                                size="sm"
                               >
                                 <Play className="h-4 w-4" />
                                 执行
-                              </button>
+                              </Button>
                               {job.status === 'active' ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600">
                                   <Pause className="h-4 w-4" />
@@ -423,7 +428,7 @@ export function WorkflowsPage() {
                             </div>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -434,14 +439,15 @@ export function WorkflowsPage() {
                   <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
                     可以先初始化默认模板，或者创建一个面向沉默用户、首购用户的自动化编排。
                   </p>
-                  <button
+                  <Button
                     onClick={() => bootstrapMutation.mutate()}
                     disabled={bootstrapMutation.isPending}
-                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50"
+                    variant="brand"
+                    className="mt-5"
                   >
                     <Rocket className="h-4 w-4" />
                     {bootstrapMutation.isPending ? '初始化中...' : '初始化默认模板'}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -555,22 +561,24 @@ export function WorkflowsPage() {
                         </span>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button
+                        <Button
                           onClick={() => approveMutation.mutate({ id: approval.id, approved: true })}
                           disabled={approveMutation.isPending}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                          variant="brand"
+                          size="sm"
                         >
                           <ThumbsUp className="h-4 w-4" />
                           通过
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => approveMutation.mutate({ id: approval.id, approved: false })}
                           disabled={approveMutation.isPending}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-50"
+                          variant="destructive"
+                          size="sm"
                         >
                           <ThumbsDown className="h-4 w-4" />
                           驳回
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -717,21 +725,21 @@ export function WorkflowsPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <button
+                    <Button
                       onClick={() => executeMutation.mutate({ id: selectedJob.id })}
                       disabled={executeMutation.isPending}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                      variant="brand"
                     >
                       <Play className="h-4 w-4" />
                       立即执行
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => setShowModal(true)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      variant="secondary"
                     >
                       <Plus className="h-4 w-4" />
                       复制创建
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -782,12 +790,14 @@ export function WorkflowsPage() {
                   <p className="text-sm text-cyan-200">创建自动化任务</p>
                   <h3 className="mt-1 text-xl font-semibold">让系统自动编排增长动作</h3>
                 </div>
-                <button
+                <Button
                   onClick={() => setShowModal(false)}
+                  variant="ghost"
+                  size="sm"
                   className="rounded-xl border border-white/10 bg-white/8 px-3 py-2 text-sm text-white hover:bg-white/12"
                 >
                   关闭
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -878,7 +888,7 @@ export function WorkflowsPage() {
                   {CHANNEL_OPTIONS.map((channel) => {
                     const active = selectedChannels.includes(channel.id)
                     return (
-                      <button
+                      <Button
                         key={channel.id}
                         type="button"
                         onClick={() => {
@@ -888,14 +898,16 @@ export function WorkflowsPage() {
                               : [...current, channel.id],
                           )
                         }}
-                        className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                        variant="secondary"
+                        size="sm"
+                        className={`rounded-full px-3 py-1.5 ${
                           active
                             ? 'border-cyan-500 bg-cyan-500 text-white'
                             : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                         }`}
                       >
                         {channel.label}
-                      </button>
+                      </Button>
                     )
                   })}
                 </div>
@@ -935,21 +947,21 @@ export function WorkflowsPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  variant="secondary"
                 >
                   取消
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                  variant="brand"
                 >
                   <Rocket className="h-4 w-4" />
                   {createMutation.isPending ? '创建中...' : '创建并生成策略'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

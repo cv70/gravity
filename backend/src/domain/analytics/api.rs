@@ -1,5 +1,6 @@
 use axum::{
     extract::{Extension, Query, State},
+    http::HeaderMap,
     Json,
 };
 use std::sync::Arc;
@@ -28,6 +29,7 @@ pub async fn get_dashboard(
 
 pub async fn track_event(
     State(app_state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(req): Json<TrackEventRequest>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let repo = AnalyticsRepository::new(app_state.registry.db_dao.clone());
@@ -37,7 +39,7 @@ pub async fn track_event(
         .and_then(|s| Uuid::parse_str(s).ok());
     let properties = req.properties.unwrap_or(serde_json::json!({}));
 
-    let tenant_id = Uuid::nil();
+    let tenant_id = resolve_tenant_id(&headers, req.tenant_id.as_deref())?;
 
     repo.record_event(tenant_id, contact_id, &req.event, properties)
         .await
@@ -48,6 +50,7 @@ pub async fn track_event(
 
 pub async fn identify(
     State(app_state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(req): Json<IdentifyRequest>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let repo = AnalyticsRepository::new(app_state.registry.db_dao.clone());
@@ -55,7 +58,7 @@ pub async fn identify(
         .contact_id
         .as_ref()
         .and_then(|s| Uuid::parse_str(s).ok());
-    let tenant_id = Uuid::nil();
+    let tenant_id = resolve_tenant_id(&headers, req.tenant_id.as_deref())?;
 
     repo.record_event(
         tenant_id,
@@ -71,6 +74,7 @@ pub async fn identify(
 
 pub async fn track_page(
     State(app_state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(req): Json<PageRequest>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let repo = AnalyticsRepository::new(app_state.registry.db_dao.clone());
@@ -78,7 +82,7 @@ pub async fn track_page(
         .contact_id
         .as_ref()
         .and_then(|s| Uuid::parse_str(s).ok());
-    let tenant_id = Uuid::nil();
+    let tenant_id = resolve_tenant_id(&headers, req.tenant_id.as_deref())?;
 
     repo.record_event(
         tenant_id,
@@ -98,11 +102,12 @@ pub async fn track_page(
 
 pub async fn track_conversion(
     State(app_state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(req): Json<ConversionRequest>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let contact_id = Uuid::parse_str(&req.contact_id)
         .map_err(|_| ApiError::bad_request("Invalid contact_id"))?;
-    let tenant_id = Uuid::nil();
+    let tenant_id = resolve_tenant_id(&headers, req.tenant_id.as_deref())?;
 
     let repo = AnalyticsRepository::new(app_state.registry.db_dao.clone());
 
@@ -131,6 +136,20 @@ pub async fn track_conversion(
     .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
     Ok(ApiResponse::success(()))
+}
+
+fn resolve_tenant_id(headers: &HeaderMap, body_tenant: Option<&str>) -> Result<Uuid, ApiError> {
+    if let Some(tenant_id) = body_tenant {
+        return Uuid::parse_str(tenant_id)
+            .map_err(|_| ApiError::bad_request("Invalid tenant_id"));
+    }
+
+    if let Some(header_value) = headers.get("x-tenant-id").and_then(|value| value.to_str().ok()) {
+        return Uuid::parse_str(header_value)
+            .map_err(|_| ApiError::bad_request("Invalid X-Tenant-Id header"));
+    }
+
+    Ok(Uuid::nil())
 }
 
 pub async fn get_funnel(

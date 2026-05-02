@@ -10,6 +10,10 @@ import { AnalyticsPage } from '@/app/analytics/page'
 import { ContentsPage } from '@/app/content/page'
 import { ChannelsPage } from '@/app/channels/page'
 import { WorkflowsPage } from '@/app/workflows/page'
+import { GovernancePage } from '@/app/governance/page'
+import { SegmentsPage } from '@/app/segments/page'
+import { ApprovalsPage } from '@/app/approvals/page'
+import { AuditPage } from '@/app/audit/page'
 import { SettingsPage } from '@/app/settings/page'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -38,6 +42,10 @@ export default function App() {
       <Route path="/content" element={<ProtectedRoute><ContentsPage /></ProtectedRoute>} />
       <Route path="/channels" element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
       <Route path="/workflows" element={<ProtectedRoute><WorkflowsPage /></ProtectedRoute>} />
+      <Route path="/governance" element={<ProtectedRoute><GovernancePage /></ProtectedRoute>} />
+      <Route path="/segments" element={<ProtectedRoute><SegmentsPage /></ProtectedRoute>} />
+      <Route path="/approvals" element={<ProtectedRoute><ApprovalsPage /></ProtectedRoute>} />
+      <Route path="/audit" element={<ProtectedRoute><AuditPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     </Routes>
   )

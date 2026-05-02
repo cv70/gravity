@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, PencilLine, Plus, Search, Tag, Users, X } from 'lucide-react'
 
 import { contactsService } from '@/services/contacts'
+import { Button } from '@/components/ui/button'
 import type { Contact, ContactCreatePayload } from '@/types'
 
 type ContactFormState = {
@@ -35,16 +36,11 @@ export function ContactsPage() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  useEffect(() => {
-    setPage(1)
-  }, [debouncedSearch])
-
-  useEffect(() => {
-    if (!showModal) {
-      setEditing(null)
-      setForm(emptyForm)
-    }
-  }, [showModal])
+  const closeModal = () => {
+    setShowModal(false)
+    setEditing(null)
+    setForm(emptyForm)
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', page, debouncedSearch],
@@ -55,7 +51,7 @@ export function ContactsPage() {
     mutationFn: (payload: ContactCreatePayload) => contactsService.create(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['contacts'] })
-      setShowModal(false)
+      closeModal()
     },
   })
 
@@ -63,7 +59,7 @@ export function ContactsPage() {
     mutationFn: ({ id, payload }: { id: string; payload: ContactCreatePayload }) => contactsService.update(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['contacts'] })
-      setShowModal(false)
+      closeModal()
     },
   })
 
@@ -105,6 +101,11 @@ export function ContactsPage() {
       subscribed: contact.subscribed,
     })
     setShowModal(true)
+  }
+
+  const handleSearchInput = (value: string) => {
+    setSearchInput(value)
+    setPage(1)
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -150,13 +151,13 @@ export function ContactsPage() {
                 支持搜索、编辑、打标和订阅管理，让后续自动化分群和触达有可靠输入。
               </p>
             </div>
-            <button
+            <Button
               onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300"
+              variant="brand"
             >
               <Plus className="h-4 w-4" />
               添加联系人
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -182,21 +183,21 @@ export function ContactsPage() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="搜索姓名、邮箱或电话"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
-            />
+              <input
+                type="text"
+                placeholder="搜索姓名、邮箱或电话"
+                value={searchInput}
+                onChange={(e) => handleSearchInput(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+              />
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <Button
               onClick={() => queryClient.invalidateQueries({ queryKey: ['contacts'] })}
-              className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              variant="secondary"
             >
               刷新列表
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -253,20 +254,22 @@ export function ContactsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-3">
-                      <button
+                      <Button
                         onClick={() => openEdit(contact)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                        variant="secondary"
+                        size="sm"
                       >
                         <PencilLine className="h-4 w-4" />
                         编辑
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => handleDelete(contact)}
                         disabled={deleteMutation.isPending}
-                        className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        variant="ghost"
+                        className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
                       >
                         删除
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -278,21 +281,21 @@ export function ContactsPage() {
 
       {data && data.total > 20 && (
         <div className="flex items-center justify-center gap-2">
-          <button
+          <Button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 disabled:opacity-50"
+            variant="secondary"
           >
             上一页
-          </button>
+          </Button>
           <span className="px-3 py-2 text-sm text-slate-500">第 {page} 页</span>
-          <button
+          <Button
             onClick={() => setPage((p) => p + 1)}
             disabled={data.data.length < 20}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 disabled:opacity-50"
+            variant="secondary"
           >
             下一页
-          </button>
+          </Button>
         </div>
       )}
 
@@ -304,9 +307,9 @@ export function ContactsPage() {
                 <h3 className="text-lg font-semibold text-slate-900">{editing ? '编辑联系人' : '添加联系人'}</h3>
                 <p className="text-sm text-slate-500">联系人会用于分群、评分、触达和销售协同。</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+              <Button onClick={closeModal} variant="ghost" size="sm" className="rounded-full p-2 text-slate-400">
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 p-6">
@@ -362,16 +365,16 @@ export function ContactsPage() {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Button type="button" onClick={closeModal} variant="secondary">
                   取消
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
-                  className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                  variant="brand"
                 >
                   {editing ? '保存更改' : createMutation.isPending ? '创建中...' : '创建联系人'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

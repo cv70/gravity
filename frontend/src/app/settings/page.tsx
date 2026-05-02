@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Settings, Bell, Shield, Database, Palette } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
+
 type Tab = 'general' | 'notifications' | 'security' | 'data' | 'appearance'
 
 export function SettingsPage() {
@@ -25,18 +27,19 @@ export function SettingsPage() {
         <div className="w-48 shrink-0">
           <nav className="space-y-1">
             {tabs.map((tab) => (
-              <button
+              <Button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                variant="ghost"
+                className={`w-full justify-start gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-brand-50 text-brand-700'
+                    ? 'bg-brand-50 text-brand-700 hover:bg-brand-50'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 <tab.icon className="h-4 w-4" />
                 {tab.label}
-              </button>
+              </Button>
             ))}
           </nav>
         </div>
@@ -73,9 +76,9 @@ export function SettingsPage() {
                     <option value="en">English</option>
                   </select>
                 </div>
-                <button className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">
+                <Button variant="brand">
                   保存更改
-                </button>
+                </Button>
               </div>
             )}
 
@@ -121,17 +124,17 @@ export function SettingsPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">确认新密码</label>
                       <input type="password" className="w-full px-3 py-2 border rounded-lg" />
                     </div>
-                    <button className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">
+                    <Button variant="brand">
                       更新密码
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div className="pt-6 border-t">
                   <h3 className="font-medium text-gray-900 mb-4">两步验证</h3>
                   <p className="text-sm text-gray-500 mb-4">启用两步验证以增强账户安全</p>
-                  <button className="px-4 py-2 border border-brand-600 text-brand-600 rounded-lg hover:bg-brand-50">
+                  <Button variant="secondary">
                     启用两步验证
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -143,18 +146,18 @@ export function SettingsPage() {
                     <p className="font-medium text-gray-900">数据导出</p>
                     <p className="text-sm text-gray-500">导出所有联系人数据</p>
                   </div>
-                  <button className="px-4 py-2 border rounded-lg hover:bg-white">
+                  <Button variant="secondary">
                     导出 CSV
-                  </button>
+                  </Button>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
                   <div>
                     <p className="font-medium text-red-700">危险区域</p>
                     <p className="text-sm text-red-500">永久删除您的账户和数据</p>
                   </div>
-                  <button className="px-4 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50">
+                  <Button variant="destructive">
                     删除账户
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -164,18 +167,18 @@ export function SettingsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">主题</label>
                   <div className="grid grid-cols-3 gap-4">
-                    <button className="p-4 border-2 border-brand-500 rounded-lg bg-white">
+                    <Button variant="secondary" className="h-auto w-full flex-col items-start gap-0 p-4 border-2 border-brand-500 bg-white">
                       <div className="w-full h-8 bg-brand-600 rounded mb-2"></div>
                       <span className="text-sm font-medium">品牌色</span>
-                    </button>
-                    <button className="p-4 border rounded-lg bg-white hover:border-gray-300">
+                    </Button>
+                    <Button variant="secondary" className="h-auto w-full flex-col items-start gap-0 p-4 bg-white hover:border-gray-300">
                       <div className="w-full h-8 bg-gray-900 rounded mb-2"></div>
                       <span className="text-sm font-medium">深色</span>
-                    </button>
-                    <button className="p-4 border rounded-lg bg-white hover:border-gray-300">
+                    </Button>
+                    <Button variant="secondary" className="h-auto w-full flex-col items-start gap-0 p-4 bg-white hover:border-gray-300">
                       <div className="w-full h-8 bg-white border rounded mb-2"></div>
                       <span className="text-sm font-medium">浅色</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

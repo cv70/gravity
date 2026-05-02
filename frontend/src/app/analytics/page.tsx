@@ -13,7 +13,11 @@ export function AnalyticsPage() {
   })
 
   if (isLoading) {
-    return <div className="animate-pulse">加载中...</div>
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+        <p className="animate-pulse text-slate-500">正在加载数据分析...</p>
+      </div>
+    )
   }
 
   return (
@@ -73,7 +77,7 @@ export function AnalyticsPage() {
               })}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">暂无漏斗数据</p>
+            <p className="text-gray-500 text-center py-8">当前没有漏斗数据。</p>
           )}
         </div>
       </div>

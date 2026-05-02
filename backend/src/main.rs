@@ -97,6 +97,62 @@ async fn main() -> anyhow::Result<()> {
             get(domain::content::get_content).delete(domain::content::delete_content),
         )
         .route(
+            "/api/v1/segments",
+            get(domain::segment::list_segments).post(domain::segment::create_segment),
+        )
+        .route(
+            "/api/v1/segments/{id}",
+            get(domain::segment::get_segment)
+                .patch(domain::segment::update_segment)
+                .delete(domain::segment::delete_segment),
+        )
+        .route(
+            "/api/v1/segments/{id}/preview",
+            post(domain::segment::preview_segment),
+        )
+        .route(
+            "/api/v1/workflows",
+            get(domain::workflow::list_workflows).post(domain::workflow::create_workflow),
+        )
+        .route(
+            "/api/v1/workflows/{id}",
+            get(domain::workflow::get_workflow)
+                .patch(domain::workflow::update_workflow)
+                .delete(domain::workflow::delete_workflow),
+        )
+        .route(
+            "/api/v1/workflows/{id}/activate",
+            post(domain::workflow::activate_workflow),
+        )
+        .route(
+            "/api/v1/workflows/{id}/deactivate",
+            post(domain::workflow::deactivate_workflow),
+        )
+        .route(
+            "/api/v1/workflows/{id}/executions",
+            get(domain::workflow::list_executions),
+        )
+        .route(
+            "/api/v1/workflows/{workflow_id}/executions/{execution_id}",
+            get(domain::workflow::get_execution),
+        )
+        .route(
+            "/api/v1/workflows/{id}/test",
+            post(domain::workflow::test_workflow),
+        )
+        .route(
+            "/api/v1/approvals",
+            get(domain::approval::list_approvals).post(domain::approval::create_approval),
+        )
+        .route(
+            "/api/v1/approvals/{id}",
+            patch(domain::approval::update_approval),
+        )
+        .route(
+            "/api/v1/audit-logs",
+            get(domain::audit::list_audit_logs),
+        )
+        .route(
             "/api/v1/automation/dashboard",
             get(domain::automation::get_dashboard),
         )
@@ -143,6 +199,18 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/api/v1/analytics/funnel",
             get(domain::analytics::get_funnel),
+        )
+        .route(
+            "/api/v1/insights/recommendations",
+            get(domain::insights::get_recommendations),
+        )
+        .route(
+            "/api/v1/insights/anomalies",
+            get(domain::insights::get_anomalies),
+        )
+        .route(
+            "/api/v1/insights/opportunities",
+            get(domain::insights::get_opportunities),
         )
         .route("/api/v1/auth/me", get(domain::auth::me))
         .layer(middleware::from_fn_with_state(

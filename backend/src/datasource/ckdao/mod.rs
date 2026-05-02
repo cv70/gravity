@@ -1,5 +1,6 @@
 use anyhow::Result;
 use uuid::Uuid;
+use url::Url;
 
 // =============================================================================
 // ClickHouse Client Wrapper
@@ -69,9 +70,9 @@ impl CkAnalyticsDao {
             occurred_at.format("%Y-%m-%d %H:%M:%S%.3f"),
         );
 
+        let url = Url::parse_with_params(self.client.url(), &[("query", &*query)])?;
         let _ = client
-            .post(self.client.url())
-            .query(&[("query", query)])
+            .post(url.as_str())
             .send()
             .await?;
 
@@ -116,9 +117,9 @@ impl CkAnalyticsDao {
             where_clause, limit_clause
         );
 
+        let url = Url::parse_with_params(self.client.url(), &[("query", &*query)])?;
         let response = client
-            .post(self.client.url())
-            .query(&[("query", query)])
+            .post(url.as_str())
             .send()
             .await?;
 
@@ -166,9 +167,9 @@ impl CkAnalyticsDao {
         let where_clause = conditions.join(" AND ");
         let query = format!("SELECT count() FROM events WHERE {}", where_clause);
 
+        let url = Url::parse_with_params(self.client.url(), &[("query", &*query)])?;
         let response = client
-            .post(self.client.url())
-            .query(&[("query", query)])
+            .post(url.as_str())
             .send()
             .await?;
 
@@ -263,9 +264,9 @@ impl CkFunnelDao {
             end_time.format("%Y-%m-%d %H:%M:%S%.3f"),
         );
 
+        let url = Url::parse_with_params(self.client.url(), &[("query", &*query)])?;
         let response = client
-            .post(self.client.url())
-            .query(&[("query", query)])
+            .post(url.as_str())
             .send()
             .await?;
 

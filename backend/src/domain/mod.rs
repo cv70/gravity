@@ -1,3 +1,5 @@
+pub mod approval;
+pub mod audit;
 pub mod analytics;
 pub mod auth;
 pub mod automation;
@@ -5,5 +7,7 @@ pub mod campaign;
 pub mod channel;
 pub mod contact;
 pub mod content;
-// pub mod workflow;
+pub mod insights;
+pub mod segment;
+pub mod workflow;
 // pub mod conversion;

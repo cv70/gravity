@@ -4,7 +4,15 @@
 
 Gravity 的数据库设计服务于一个最终态目标：让运营、策略、执行、分析和治理形成统一闭环。数据模型需要同时支持事务型业务、事件型分析、流程状态和审计追踪。
 
-## 2. 多租户隔离
+## 2. 存储分层
+
+- **PostgreSQL**：主业务数据、工作流状态、审批、审计和多租户配置
+- **Redis**：缓存、分布式锁、短期状态、频控和队列辅助
+- **ClickHouse**：行为事件、漏斗分析、归因分析和 ROI 聚合
+
+这三层分工要保持清晰：主库负责一致性，缓存负责速度，分析库负责吞吐。
+
+## 3. 多租户隔离
 
 所有业务表默认包含 `tenant_id` 字段，通过 PostgreSQL Row-Level Security (RLS) 强制隔离：
 
@@ -14,9 +22,11 @@ CREATE POLICY tenant_isolation ON contacts
 USING (tenant_id = current_setting('app.tenant_id')::uuid);
 ```
 
-## 3. 核心数据域
+## 4. 核心数据域
 
-### 3.1 组织与权限
+### 4.1 组织与权限
+
+组织、用户和权限定义系统的租户边界。
 
 ```sql
 CREATE TABLE organizations (
@@ -42,7 +52,9 @@ CREATE TABLE users (
 );
 ```
 
-### 3.2 联系人与画像
+### 4.2 联系人与画像
+
+联系人是统一身份和生命周期的核心对象。
 
 ```sql
 CREATE TABLE contacts (
@@ -74,7 +86,9 @@ CREATE TABLE segments (
 );
 ```
 
-### 3.3 活动与内容
+### 4.3 活动与内容
+
+活动承载目标，内容承载创意与版本。
 
 ```sql
 CREATE TABLE campaigns (
@@ -104,7 +118,9 @@ CREATE TABLE contents (
 );
 ```
 
-### 3.4 工作流与执行
+### 4.4 工作流与执行
+
+工作流定义和执行实例必须分离，便于版本化、恢复和审计。
 
 ```sql
 CREATE TABLE workflows (
@@ -144,7 +160,9 @@ CREATE TABLE workflow_schedules (
 );
 ```
 
-### 3.5 渠道与凭证
+### 4.5 渠道与凭证
+
+渠道账号表只保存加密凭证与运行配置，不能保存明文 secret。
 
 ```sql
 CREATE TABLE channel_accounts (
@@ -161,7 +179,9 @@ CREATE TABLE channel_accounts (
 );
 ```
 
-### 3.6 事件与转化
+### 4.6 事件与转化
+
+事件表负责记录行为和回执，转化表负责记录业务价值。
 
 ```sql
 CREATE TABLE events (
@@ -199,7 +219,9 @@ CREATE TABLE conversions (
 );
 ```
 
-### 3.7 实验、审批与审计
+### 4.7 实验、审批与审计
+
+这三类表记录策略实验、风险放行和责任追踪。
 
 ```sql
 CREATE TABLE experiments (
@@ -239,9 +261,9 @@ CREATE TABLE audit_logs (
 );
 ```
 
-## 4. 分析存储
+## 5. 分析存储
 
-### 4.1 ClickHouse 事件明细
+### 5.1 ClickHouse 事件明细
 
 ```sql
 CREATE TABLE analytics_events (
@@ -257,7 +279,7 @@ PARTITION BY toYYYYMMDD(occurred_at)
 ORDER BY (tenant_id, occurred_at, contact_id);
 ```
 
-### 4.2 漏斗与聚合
+### 5.2 漏斗与聚合
 
 ```sql
 CREATE TABLE analytics_funnel_steps (
@@ -272,7 +294,7 @@ CREATE TABLE analytics_funnel_steps (
 ORDER BY (tenant_id, campaign_id, date);
 ```
 
-## 5. 索引策略
+## 6. 索引策略
 
 ```sql
 CREATE INDEX idx_contacts_tenant_email ON contacts(tenant_id, email);
@@ -283,7 +305,7 @@ CREATE INDEX idx_campaigns_tenant_status ON campaigns(tenant_id, status);
 CREATE INDEX idx_workflow_exec_tenant_status ON workflow_executions(tenant_id, status);
 ```
 
-## 6. 数据设计原则
+## 7. 数据设计原则
 
 - 主业务、执行状态和分析事件分层存储
 - 工作流定义与执行实例分离，便于版本化和恢复

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calendar, Clock3, Megaphone, Pause, PencilLine, Play, Plus, Rocket, Search, Trash2, X } from 'lucide-react'
 
 import { campaignsService } from '@/services/campaigns'
+import { Button } from '@/components/ui/button'
 import type { Campaign, CampaignCreatePayload } from '@/types'
 
 type CampaignFormState = {
@@ -34,12 +35,11 @@ export function CampaignsPage() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  useEffect(() => {
-    if (!showModal) {
-      setEditing(null)
-      setForm(emptyForm)
-    }
-  }, [showModal])
+  const closeModal = () => {
+    setShowModal(false)
+    setEditing(null)
+    setForm(emptyForm)
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['campaigns'],
@@ -50,7 +50,7 @@ export function CampaignsPage() {
     mutationFn: (payload: CampaignCreatePayload) => campaignsService.create(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-      setShowModal(false)
+      closeModal()
     },
   })
 
@@ -59,7 +59,7 @@ export function CampaignsPage() {
       campaignsService.update(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-      setShowModal(false)
+      closeModal()
     },
   })
 
@@ -158,13 +158,13 @@ export function CampaignsPage() {
                 活动页支持起草、启动、暂停、编辑和删除，帮助团队快速推进增长计划。
               </p>
             </div>
-            <button
+            <Button
               onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300"
+              variant="brand"
             >
               <Plus className="h-4 w-4" />
               创建活动
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -197,12 +197,12 @@ export function CampaignsPage() {
               className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
             />
           </div>
-          <button
+          <Button
             onClick={() => queryClient.invalidateQueries({ queryKey: ['campaigns'] })}
-            className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            variant="secondary"
           >
             刷新
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -253,42 +253,46 @@ export function CampaignsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
-                      <button
+                      <Button
                         onClick={() => openEdit(campaign)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                        variant="secondary"
+                        size="sm"
                       >
                         <PencilLine className="h-4 w-4" />
                         编辑
-                      </button>
+                      </Button>
                       {campaign.status === 'active' ? (
-                        <button
+                        <Button
                           onClick={() => pauseMutation.mutate(campaign.id)}
                           disabled={pauseMutation.isPending}
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                          variant="secondary"
+                          size="sm"
                         >
                           <Pause className="h-4 w-4" />
                           暂停
-                        </button>
+                        </Button>
                       ) : campaign.status !== 'completed' ? (
-                        <button
+                        <Button
                           onClick={() => launchMutation.mutate(campaign.id)}
                           disabled={launchMutation.isPending}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          variant="brand"
+                          size="sm"
                         >
                           <Play className="h-4 w-4" />
                           启动
-                        </button>
+                        </Button>
                       ) : null}
-                      <button
+                      <Button
                         onClick={() => {
                           if (window.confirm(`确定删除活动 "${campaign.name}" 吗？`)) {
                             deleteMutation.mutate(campaign.id)
                           }
                         }}
+                        variant="ghost"
                         className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -306,9 +310,9 @@ export function CampaignsPage() {
                 <h3 className="text-lg font-semibold text-slate-900">{editing ? '编辑活动' : '创建活动'}</h3>
                 <p className="text-sm text-slate-500">活动定义会驱动内容、触达和转化执行。</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+              <Button onClick={closeModal} variant="ghost" size="sm" className="rounded-full p-2 text-slate-400">
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4 p-6">
               <div className="grid gap-4 md:grid-cols-2">
@@ -365,16 +369,16 @@ export function CampaignsPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Button type="button" onClick={closeModal} variant="secondary">
                   取消
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
-                  className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                  variant="brand"
                 >
                   {editing ? '保存更改' : createMutation.isPending ? '创建中...' : '创建活动'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
